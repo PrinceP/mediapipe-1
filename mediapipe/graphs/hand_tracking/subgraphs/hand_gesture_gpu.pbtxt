@@ -52,7 +52,7 @@ node {
   node_options: {
     [type.googleapis.com/mediapipe.TfLiteInferenceCalculatorOptions] {
       model_path: "letters.tflite"
-      use_gpu: true
+      delegate { gpu {} }
     }
   }
 }
