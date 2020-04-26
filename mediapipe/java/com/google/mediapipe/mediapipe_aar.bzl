@@ -79,6 +79,13 @@ cat > $(OUTS) <<EOF
     )
 
     _proto_java_src_generator(
+        name = "classification_proto",
+        proto_src = "mediapipe/framework/formats/classification.proto",
+        java_lite_out = "com/google/mediapipe/formats/proto/ClassificationProto.java",
+        srcs = ["//mediapipe/framework/formats:protos_src"],
+    )
+
+    _proto_java_src_generator(
         name = "rasterization_proto",
         proto_src = "mediapipe/framework/formats/annotation/rasterization.proto",
         java_lite_out = "com/google/mediapipe/formats/annotation/proto/RasterizationProto.java",
@@ -112,6 +119,7 @@ cat > $(OUTS) <<EOF
             "//mediapipe/java/com/google/mediapipe/framework:java_src",
             "//mediapipe/java/com/google/mediapipe/glutil:java_src",
             "com/google/mediapipe/proto/CalculatorProto.java",
+            "com/google/mediapipe/formats/proto/ClassificationProto.java",
             "com/google/mediapipe/formats/proto/LandmarkProto.java",
             "com/google/mediapipe/formats/proto/DetectionProto.java",
             "com/google/mediapipe/formats/proto/LocationDataProto.java",
