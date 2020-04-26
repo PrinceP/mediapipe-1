@@ -110,6 +110,18 @@ mediapipe_cc_proto_library(
     deps = [":annotation_overlay_calculator_proto"],
 )
 
+
+#mediapipe_cc_proto_library(
+#    name = "annotation_overlay_disable_calculator_cc_proto",
+#    srcs = ["annotation_overlay_calculator.proto"],
+#    cc_deps = [
+#        "//mediapipe/framework:calculator_cc_proto",
+#        "//mediapipe/util:color_cc_proto",
+#    ],
+#    visibility = ["//visibility:public"],
+#    deps = [":annotation_overlay_calculator_proto"],
+#)
+
 mediapipe_cc_proto_library(
     name = "detection_label_id_to_text_calculator_cc_proto",
     srcs = ["detection_label_id_to_text_calculator.proto"],
@@ -305,6 +317,37 @@ cc_library(
     }),
     alwayslink = 1,
 )
+
+cc_library(
+    name = "annotation_overlay_disable_calculator",
+    srcs = ["annotation_overlay_disable_calculator.cc"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":annotation_overlay_calculator_cc_proto",
+        "//mediapipe/framework:calculator_options_cc_proto",
+        "//mediapipe/framework/formats:image_format_cc_proto",
+        "//mediapipe/util:color_cc_proto",
+        "//mediapipe/framework:calculator_framework",
+        "//mediapipe/framework/formats:image_frame",
+        "//mediapipe/framework/formats:video_stream_header",
+        "//mediapipe/framework/port:logging",
+        "//mediapipe/framework/port:opencv_core",
+        "//mediapipe/framework/port:status",
+        "//mediapipe/framework/port:vector",
+        "//mediapipe/util:annotation_renderer",
+        "//mediapipe/util:render_data_cc_proto",
+    ] + select({
+        "//mediapipe/gpu:disable_gpu": [],
+        "//conditions:default": [
+            "//mediapipe/gpu:gl_calculator_helper",
+            "//mediapipe/gpu:gl_simple_shaders",
+            "//mediapipe/gpu:gpu_buffer",
+            "//mediapipe/gpu:shader_util",
+        ],
+    }),
+    alwayslink = 1,
+)
+
 
 cc_library(
     name = "detection_label_id_to_text_calculator",

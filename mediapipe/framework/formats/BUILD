@@ -31,11 +31,11 @@ mediapipe_proto_library(
     deps = ["//mediapipe/framework/formats:location_data_proto"],
 )
 
-mediapipe_proto_library(
-    name = "classification_proto",
-    srcs = ["classification.proto"],
-    visibility = ["//visibility:public"],
-)
+#mediapipe_proto_library(
+#    name = "classification_proto",
+#    srcs = ["classification.proto"],
+#    visibility = ["//visibility:public"],
+#)
 
 mediapipe_proto_library(
     name = "image_format_proto",
@@ -72,6 +72,28 @@ cc_library(
         "//mediapipe/framework/port:logging",
     ],
 )
+
+#mediapipe_proto_library(
+#    name = "classification_cc_proto",
+#    srcs = ["classification.proto"],
+#    visibility = ["//visibility:public"],
+#    deps = [":classification_proto"],
+#)
+
+mediapipe_proto_library(
+    name = "classification_proto",
+    srcs = ["classification.proto"],
+    visibility = ["//visibility:public"],
+)
+
+#java_lite_proto_library(
+#    name = "classification_java_proto_lite",
+#    strict_deps = 0,
+#    visibility = [
+#        "//visibility:public",
+#    ],
+#    deps = [":classification_proto"],
+#)
 
 cc_library(
     name = "matrix",

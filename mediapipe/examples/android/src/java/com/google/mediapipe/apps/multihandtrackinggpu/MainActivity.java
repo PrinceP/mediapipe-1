@@ -23,6 +23,7 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
 import android.view.ViewGroup;
+import com.google.mediapipe.formats.proto.ClassificationProto;
 import com.google.mediapipe.formats.proto.LandmarkProto.NormalizedLandmark;
 import com.google.mediapipe.formats.proto.LandmarkProto.NormalizedLandmarkList;
 import com.google.mediapipe.components.CameraHelper;
@@ -43,6 +44,7 @@ public class MainActivity extends AppCompatActivity {
   private static final String INPUT_VIDEO_STREAM_NAME = "input_video";
   private static final String OUTPUT_VIDEO_STREAM_NAME = "output_video";
   private static final String OUTPUT_LANDMARKS_STREAM_NAME = "multi_hand_landmarks";
+  private static final String OUTPUT_CLASSIFICATIONS_STREAM_NAME = "multi_hand_gesture";
   private static final CameraHelper.CameraFacing CAMERA_FACING = CameraHelper.CameraFacing.FRONT;
 
   // Flips the camera-preview frames vertically before sending them into FrameProcessor to be
@@ -109,6 +111,20 @@ public class MainActivity extends AppCompatActivity {
                   + "] "
                   + getMultiHandLandmarksDebugString(multiHandLandmarks));
         });
+
+    processor.addPacketCallback(
+            OUTPUT_CLASSIFICATIONS_STREAM_NAME,
+            (packet) -> {
+              Log.d(TAG, "Received multi-hand classifications packet.");
+              List<ClassificationProto.ClassificationList> multiHandClassifications =
+                      PacketGetter.getProtoVector(packet, ClassificationProto.ClassificationList.parser());
+              Log.d(
+                      TAG,
+                      "[TS:"
+                              + packet.getTimestamp()
+                              + "] "
+                              + getMultiHandClassificationsDebugString(multiHandClassifications));
+            });
 
     PermissionHelper.checkAndRequestCameraPermissions(this);
   }
@@ -214,5 +230,19 @@ public class MainActivity extends AppCompatActivity {
       ++handIndex;
     }
     return multiHandLandmarksStr;
+  }
+
+  private String getMultiHandClassificationsDebugString(List<ClassificationProto.ClassificationList> multiHandClassifications) {
+    if (multiHandClassifications.isEmpty()) {
+      return "No hand classifications";
+    }
+    String multiHandClassificationsStr = "Number of hands detected: " + multiHandClassifications.size() + "\n";
+    int handIndex = 0;
+    for (ClassificationProto.ClassificationList classification : multiHandClassifications) {
+      multiHandClassificationsStr +=
+              "\t#Hand Classifications for hand[" + handIndex + "]: " + classification.getClassification(handIndex) + "\n";
+//      ++handIndex;
+    }
+    return multiHandClassificationsStr;
   }
 }

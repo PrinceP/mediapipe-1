@@ -58,6 +58,7 @@ cc_library(
         "//mediapipe/calculators/core:previous_loopback_calculator",
         "//mediapipe/graphs/hand_tracking/subgraphs:hand_detection_gpu",
         "//mediapipe/graphs/hand_tracking/subgraphs:hand_landmark_gpu",
+        "//mediapipe/graphs/hand_tracking/subgraphs:hand_gesture_gpu",
         "//mediapipe/graphs/hand_tracking/subgraphs:renderer_gpu",
     ],
 )
@@ -91,6 +92,7 @@ cc_library(
         "//mediapipe/calculators/util:collection_has_min_size_calculator",
         "//mediapipe/graphs/hand_tracking/subgraphs:multi_hand_detection_gpu",
         "//mediapipe/graphs/hand_tracking/subgraphs:multi_hand_landmark_gpu",
+        "//mediapipe/graphs/hand_tracking/subgraphs:multi_hand_gesture_gpu",
         "//mediapipe/graphs/hand_tracking/subgraphs:multi_hand_renderer_gpu",
     ],
 )
@@ -107,6 +109,7 @@ cc_library(
     deps = [
         "//mediapipe/calculators/core:flow_limiter_calculator",
         "//mediapipe/graphs/hand_tracking/subgraphs:hand_detection_gpu",
+        "//mediapipe/graphs/hand_tracking/subgraphs:hand_gesture_gpu",
         "//mediapipe/graphs/hand_tracking/subgraphs:renderer_gpu",
     ],
 )

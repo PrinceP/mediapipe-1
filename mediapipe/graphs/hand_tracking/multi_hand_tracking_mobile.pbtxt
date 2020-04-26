@@ -77,6 +77,17 @@ node {
   output_stream: "NORM_RECTS:multi_hand_rects_from_landmarks"
 }
 
+
+# Subgraph that localizes hand classifications for multiple hands (see
+# multi_hand_gesture.pbtxt).
+node {
+  calculator: "MultiHandGestureSubgraph"
+  input_stream: "IMAGE:throttled_input_video"
+  input_stream: "NORM_RECTS:multi_hand_rects_from_landmarks"
+  input_stream: "ITERABLE:multi_hand_presence"
+  output_stream: "ITERABLE:multi_hand_gesture"
+}
+
 # Caches a hand rectangle fed back from MultiHandLandmarkSubgraph, and upon the
 # arrival of the next input image sends out the cached rectangle with the
 # timestamp replaced by that of the input image, essentially generating a packet
