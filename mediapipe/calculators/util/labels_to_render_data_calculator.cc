@@ -77,7 +77,8 @@ REGISTER_CALCULATOR(LabelsToRenderDataCalculator);
     CalculatorContract* cc) {
   if (cc->Inputs().HasTag("CLASSIFICATIONS")) {
     cc->Inputs().Tag("CLASSIFICATIONS").Set<ClassificationList>();
-  } else {
+  }
+  else {
     RET_CHECK(cc->Inputs().HasTag("LABELS"))
         << "Must provide input stream \"LABELS\"";
     cc->Inputs().Tag("LABELS").Set<std::vector<std::string>>();

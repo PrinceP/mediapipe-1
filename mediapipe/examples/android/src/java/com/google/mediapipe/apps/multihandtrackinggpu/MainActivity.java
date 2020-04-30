@@ -45,6 +45,7 @@ public class MainActivity extends AppCompatActivity {
   private static final String OUTPUT_VIDEO_STREAM_NAME = "output_video";
   private static final String OUTPUT_LANDMARKS_STREAM_NAME = "multi_hand_landmarks";
   private static final String OUTPUT_CLASSIFICATIONS_STREAM_NAME = "multi_hand_gesture";
+  private static final String OUTPUT_LUMINANCE_STREAM_NAME = "luminance_value";
   private static final CameraHelper.CameraFacing CAMERA_FACING = CameraHelper.CameraFacing.FRONT;
 
   // Flips the camera-preview frames vertically before sending them into FrameProcessor to be
@@ -98,33 +99,50 @@ public class MainActivity extends AppCompatActivity {
             OUTPUT_VIDEO_STREAM_NAME);
     processor.getVideoSurfaceOutput().setFlipY(FLIP_FRAMES_VERTICALLY);
 
-    processor.addPacketCallback(
-        OUTPUT_LANDMARKS_STREAM_NAME,
-        (packet) -> {
-          Log.d(TAG, "Received multi-hand landmarks packet.");
-          List<NormalizedLandmarkList> multiHandLandmarks =
-              PacketGetter.getProtoVector(packet, NormalizedLandmarkList.parser());
-          Log.d(
-              TAG,
-              "[TS:"
-                  + packet.getTimestamp()
-                  + "] "
-                  + getMultiHandLandmarksDebugString(multiHandLandmarks));
-        });
+//    processor.addPacketCallback(
+//        OUTPUT_LANDMARKS_STREAM_NAME,
+//        (packet) -> {
+//          Log.d(TAG, "Received multi-hand landmarks packet.");
+//          List<NormalizedLandmarkList> multiHandLandmarks =
+//              PacketGetter.getProtoVector(packet, NormalizedLandmarkList.parser());
+//          Log.d(
+//              TAG,
+//              "[TS:"
+//                  + packet.getTimestamp()
+//                  + "] "
+//                  + getMultiHandLandmarksDebugString(multiHandLandmarks));
+//        });
+
+//    processor.addPacketCallback(
+//            OUTPUT_CLASSIFICATIONS_STREAM_NAME,
+//            (packet) -> {
+//              Log.d(TAG, "Received multi-hand classifications packet.");
+//              List<ClassificationProto.ClassificationList> multiHandClassifications =
+//                      PacketGetter.getProtoVector(packet, ClassificationProto.ClassificationList.parser());
+//              Log.d(
+//                      TAG,
+//                      "[TS:"
+//                              + packet.getTimestamp()
+//                              + "] "
+//                              + getMultiHandClassificationsDebugString(multiHandClassifications));
+//            });
+//
+//
 
     processor.addPacketCallback(
-            OUTPUT_CLASSIFICATIONS_STREAM_NAME,
+            OUTPUT_LUMINANCE_STREAM_NAME,
             (packet) -> {
-              Log.d(TAG, "Received multi-hand classifications packet.");
-              List<ClassificationProto.ClassificationList> multiHandClassifications =
-                      PacketGetter.getProtoVector(packet, ClassificationProto.ClassificationList.parser());
+              Log.d(TAG, "Received luminance packet.");
+              Double luminance_value =
+                      PacketGetter.getFloat64(packet);
               Log.d(
                       TAG,
                       "[TS:"
                               + packet.getTimestamp()
                               + "] "
-                              + getMultiHandClassificationsDebugString(multiHandClassifications));
+                              + luminance_value.toString());
             });
+
 
     PermissionHelper.checkAndRequestCameraPermissions(this);
   }

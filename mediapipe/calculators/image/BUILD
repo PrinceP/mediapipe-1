@@ -629,3 +629,25 @@ cc_library(
     ],
     alwayslink = 1,
 )
+
+cc_library(
+    name = "luminance_value_calculator",
+    srcs = ["luminance_value_calculator.cc"],
+    visibility = ["//mediapipe:__subpackages__"],
+    deps = [
+        "//mediapipe/framework:calculator_framework",
+        "//mediapipe/framework/formats:image_frame",
+        "//mediapipe/framework/formats:image_frame_opencv",
+        "//mediapipe/framework/formats:video_stream_header",
+        "//mediapipe/framework/port:integral_types",
+        "//mediapipe/framework/port:logging",
+        "//mediapipe/framework/port:opencv_core",
+        "//mediapipe/framework/port:opencv_features2d",
+        "//mediapipe/framework/port:opencv_imgproc",
+        "//mediapipe/framework/port:ret_check",
+        "//mediapipe/framework/port:status",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/synchronization",
+    ],
+    alwayslink = 1,
+)

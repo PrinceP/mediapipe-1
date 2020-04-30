@@ -209,6 +209,14 @@ mediapipe_proto_library(
         "//visibility:public",
     ],
 )
+#
+#mediapipe_proto_library(
+#    name = "classification_proto",
+#    srcs = ["classification.proto"],
+#    visibility = [
+#        "//visibility:public",
+#    ],
+#)
 
 # Expose the proto source files for building mediapipe AAR.
 filegroup(
