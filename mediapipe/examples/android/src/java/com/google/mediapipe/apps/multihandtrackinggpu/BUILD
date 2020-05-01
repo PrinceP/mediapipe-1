@@ -79,6 +79,7 @@ android_library(
         ":mediapipe_jni_lib",
         "//mediapipe/framework/formats:classification_java_proto_lite",
         "//mediapipe/framework/formats:landmark_java_proto_lite",
+        "//mediapipe/framework/formats:rect_java_proto_lite",
         "//mediapipe/java/com/google/mediapipe/components:android_camerax_helper",
         "//mediapipe/java/com/google/mediapipe/components:android_components",
         "//mediapipe/java/com/google/mediapipe/framework:android_framework",

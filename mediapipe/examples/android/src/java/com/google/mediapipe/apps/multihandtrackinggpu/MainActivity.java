@@ -26,6 +26,7 @@ import android.view.ViewGroup;
 import com.google.mediapipe.formats.proto.ClassificationProto;
 import com.google.mediapipe.formats.proto.LandmarkProto.NormalizedLandmark;
 import com.google.mediapipe.formats.proto.LandmarkProto.NormalizedLandmarkList;
+import com.google.mediapipe.formats.proto.RectProto.NormalizedRect;
 import com.google.mediapipe.components.CameraHelper;
 import com.google.mediapipe.components.CameraXPreviewHelper;
 import com.google.mediapipe.components.ExternalTextureConverter;
@@ -46,6 +47,9 @@ public class MainActivity extends AppCompatActivity {
   private static final String OUTPUT_LANDMARKS_STREAM_NAME = "multi_hand_landmarks";
   private static final String OUTPUT_CLASSIFICATIONS_STREAM_NAME = "multi_hand_gesture";
   private static final String OUTPUT_LUMINANCE_STREAM_NAME = "luminance_value";
+  private static final String OUTPUT_DETECTIONS_STREAM_NAME = "multi_hand_rects_from_landmarks";
+
+
   private static final CameraHelper.CameraFacing CAMERA_FACING = CameraHelper.CameraFacing.FRONT;
 
   // Flips the camera-preview frames vertically before sending them into FrameProcessor to be
@@ -143,6 +147,21 @@ public class MainActivity extends AppCompatActivity {
                               + luminance_value.toString());
             });
 
+    processor.addPacketCallback(
+            OUTPUT_DETECTIONS_STREAM_NAME,
+            (packet) -> {
+              Log.d(TAG, "Received luminance packet.");
+              List<NormalizedRect> multiHandRectangles =
+              PacketGetter.getProtoVector(packet, NormalizedRect.parser());
+              Log.d(
+                      TAG,
+                      "[TS:"
+                              + packet.getTimestamp()
+                              + "] "
+                              + getMultiHandDetectionsDebugString(multiHandRectangles));
+
+
+            });
 
     PermissionHelper.checkAndRequestCameraPermissions(this);
   }
@@ -262,5 +281,20 @@ public class MainActivity extends AppCompatActivity {
 //      ++handIndex;
     }
     return multiHandClassificationsStr;
+  }
+
+  private String getMultiHandDetectionsDebugString(List<NormalizedRect> multi_hand_rects){
+    if (multi_hand_rects.isEmpty()) {
+      return "No hand detections";
+    }
+    String multiHandDetectionsStr = "Number of hands detected: " + multi_hand_rects.size() + "\n";
+    int handIndex = 0;
+    for(NormalizedRect normalizedRect: multi_hand_rects) {
+
+      multiHandDetectionsStr +=
+              "\t#Hand Classifications for hand[" + handIndex + "]: " + normalizedRect.getHeight() * normalizedRect.getWidth()  + "\n";
+
+    }
+    return multiHandDetectionsStr;
   }
 }
