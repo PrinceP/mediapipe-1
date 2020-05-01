@@ -42,8 +42,8 @@ node: {
   output_stream: "IMAGE:transformed_input_video_cpu"
   node_options: {
     [type.googleapis.com/mediapipe.ImageTransformationCalculatorOptions] {
-      output_width: 1280
-      output_height: 720
+      output_width: 640
+      output_height: 480
     }
   }
 }
@@ -53,6 +53,27 @@ node {
   calculator: "LuminanceValueCalculator"
   input_stream: "IMAGE:transformed_input_video_cpu"
   output_stream: "LUMINANCE_VALUE:luminance_value"
+}
+
+
+# Applies a threshold to the confidence score to determine whether luminance is good
+node {
+  calculator: "ThresholdingCalculator"
+  input_stream: "FLOAT:luminance_value"
+  output_stream: "FLAG:luminance_presence"
+  options: {
+    [mediapipe.ThresholdingCalculatorOptions.ext] {
+      threshold: 70
+    }
+  }
+}
+
+# Drop video if luminance is less.
+node {
+  calculator: "GateCalculator"
+  input_stream: "throttled_input_video"
+  input_stream: "ALLOW:luminance_presence"
+  output_stream: "ensured_throttled_input_video"
 }
 
 
@@ -79,6 +100,7 @@ node {
 node {
   calculator: "GateCalculator"
   input_stream: "throttled_input_video"
+#  input_stream: "ensured_throttled_input_video"
   input_stream: "DISALLOW:prev_has_enough_hands"
   output_stream: "multi_hand_detection_input_video"
   node_options: {
@@ -101,6 +123,7 @@ node {
 node {
   calculator: "MultiHandLandmarkSubgraph"
   input_stream: "IMAGE:throttled_input_video"
+#  input_stream: "IMAGE:ensured_throttled_input_video"
   input_stream: "NORM_RECTS:multi_hand_rects"
   output_stream: "LANDMARKS:multi_hand_landmarks"
   output_stream: "NORM_RECTS:multi_hand_rects_from_landmarks"
@@ -111,7 +134,8 @@ node {
 # multi_hand_gesture.pbtxt).
 node {
   calculator: "MultiHandGestureSubgraph"
-  input_stream: "IMAGE:throttled_input_video"
+#  input_stream: "IMAGE:throttled_input_video"
+  input_stream: "IMAGE:ensured_throttled_input_video"
   input_stream: "NORM_RECTS:multi_hand_rects_from_landmarks"
   input_stream: "ITERABLE:multi_hand_presence"
   output_stream: "ITERABLE:multi_hand_gesture"
@@ -126,6 +150,7 @@ node {
 node {
   calculator: "PreviousLoopbackCalculator"
   input_stream: "MAIN:throttled_input_video"
+#  input_stream: "MAIN:ensured_throttled_input_video"
   input_stream: "LOOP:multi_hand_rects_from_landmarks"
   input_stream_info: {
     tag_index: "LOOP"
@@ -155,6 +180,7 @@ node {
 node {
   calculator: "MultiHandRendererSubgraph"
   input_stream: "IMAGE:throttled_input_video"
+#  input_stream: "IMAGE:ensured_throttled_input_video"
   input_stream: "DETECTIONS:multi_palm_detections"
   input_stream: "LANDMARKS:multi_hand_landmarks"
   input_stream: "NORM_RECTS:0:multi_palm_rects"

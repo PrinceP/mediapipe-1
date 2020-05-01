@@ -56,6 +56,7 @@ cc_library(
         "//mediapipe/calculators/core:gate_calculator",
         "//mediapipe/calculators/core:merge_calculator",
         "//mediapipe/calculators/core:previous_loopback_calculator",
+        "//mediapipe/calculators/util:thresholding_calculator",
         "//mediapipe/graphs/hand_tracking/subgraphs:hand_detection_gpu",
         "//mediapipe/graphs/hand_tracking/subgraphs:hand_gesture_gpu",
         "//mediapipe/graphs/hand_tracking/subgraphs:hand_landmark_gpu",

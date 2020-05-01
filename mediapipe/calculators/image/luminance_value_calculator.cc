@@ -55,7 +55,7 @@ namespace mediapipe {
         ::mediapipe::Status Process(CalculatorContext* cc) override;
 
     private:
-        double _getBrightness(const cv::Mat& frame);
+        float _getBrightness(const cv::Mat& frame);
 
 
 //        FeatureDetectorCalculatorOptions options_;
@@ -79,7 +79,7 @@ namespace mediapipe {
             cc->Inputs().Tag("IMAGE").Set<ImageFrame>();
         }
         if (cc->Outputs().HasTag("LUMINANCE_VALUE")) {
-            cc->Outputs().Tag("LUMINANCE_VALUE").Set<double>();
+            cc->Outputs().Tag("LUMINANCE_VALUE").Set<float>();
         }
 
         return ::mediapipe::OkStatus();
@@ -118,7 +118,7 @@ namespace mediapipe {
             auto brightness = _getBrightness(input_view);
 //            cc->Outputs().Tag("LUMINANCE_VALUE").Add(brightness, timestamp);
             cc->Outputs().Tag("LUMINANCE_VALUE").AddPacket(
-                    MakePacket<double>(brightness).At(cc->InputTimestamp()));
+                    MakePacket<float>(brightness).At(cc->InputTimestamp()));
 
         }
 
@@ -179,9 +179,9 @@ namespace mediapipe {
         return ::mediapipe::OkStatus();
     }
 
-    double LuminanceValueCalculator::_getBrightness(const cv::Mat &frame) {
+    float LuminanceValueCalculator::_getBrightness(const cv::Mat &frame) {
 
-        double brightness;
+        float brightness;
 
         cv::Mat grayMat;
         cv::cvtColor(frame, grayMat, cv::COLOR_BGR2GRAY);
@@ -194,7 +194,7 @@ namespace mediapipe {
         }
 
         // Find avg lum of frame
-        double avgLum = 0;
+        float avgLum = 0;
         avgLum = total_intensity/(grayMat.rows * grayMat.cols);
 
 

@@ -117,19 +117,19 @@ public class MainActivity extends AppCompatActivity {
 //                  + getMultiHandLandmarksDebugString(multiHandLandmarks));
 //        });
 
-//    processor.addPacketCallback(
-//            OUTPUT_CLASSIFICATIONS_STREAM_NAME,
-//            (packet) -> {
-//              Log.d(TAG, "Received multi-hand classifications packet.");
-//              List<ClassificationProto.ClassificationList> multiHandClassifications =
-//                      PacketGetter.getProtoVector(packet, ClassificationProto.ClassificationList.parser());
-//              Log.d(
-//                      TAG,
-//                      "[TS:"
-//                              + packet.getTimestamp()
-//                              + "] "
-//                              + getMultiHandClassificationsDebugString(multiHandClassifications));
-//            });
+    processor.addPacketCallback(
+            OUTPUT_CLASSIFICATIONS_STREAM_NAME,
+            (packet) -> {
+              Log.d(TAG, "Received multi-hand classifications packet.");
+              List<ClassificationProto.ClassificationList> multiHandClassifications =
+                      PacketGetter.getProtoVector(packet, ClassificationProto.ClassificationList.parser());
+              Log.d(
+                      TAG,
+                      "[TS:"
+                              + packet.getTimestamp()
+                              + "] "
+                              + getMultiHandClassificationsDebugString(multiHandClassifications));
+            });
 //
 //
 
@@ -137,8 +137,8 @@ public class MainActivity extends AppCompatActivity {
             OUTPUT_LUMINANCE_STREAM_NAME,
             (packet) -> {
               Log.d(TAG, "Received luminance packet.");
-              Double luminance_value =
-                      PacketGetter.getFloat64(packet);
+              Float luminance_value =
+                      PacketGetter.getFloat32(packet);
               Log.d(
                       TAG,
                       "[TS:"
@@ -150,7 +150,7 @@ public class MainActivity extends AppCompatActivity {
     processor.addPacketCallback(
             OUTPUT_DETECTIONS_STREAM_NAME,
             (packet) -> {
-              Log.d(TAG, "Received luminance packet.");
+              Log.d(TAG, "Received rectangles packet.");
               List<NormalizedRect> multiHandRectangles =
               PacketGetter.getProtoVector(packet, NormalizedRect.parser());
               Log.d(
