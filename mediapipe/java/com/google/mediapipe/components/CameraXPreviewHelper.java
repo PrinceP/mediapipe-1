@@ -123,14 +123,44 @@ public class CameraXPreviewHelper extends CameraHelper {
 
   @Override
   public Size computeDisplaySizeFromViewSize(Size viewSize) {
+//    if (viewSize == null || frameSize == null) {
+//      // Wait for all inputs before setting display size.
+//      Log.d(TAG, "viewSize or frameSize is null.");
+//      return null;
+//    }
+//
+//    Size optimalSize = getOptimalViewSize(viewSize);
+//    return optimalSize != null ? optimalSize : frameSize;
+
     if (viewSize == null || frameSize == null) {
       // Wait for all inputs before setting display size.
       Log.d(TAG, "viewSize or frameSize is null.");
       return null;
     }
 
-    Size optimalSize = getOptimalViewSize(viewSize);
-    return optimalSize != null ? optimalSize : frameSize;
+    // Valid rotation values are 0, 90, 180 and 270.
+    // Frames are rotated relative to the device's "natural" landscape orientation. When in portrait
+    // mode, valid rotation values are 90 or 270, and the width/height should be swapped to
+    // calculate aspect ratio.
+    float frameAspectRatio =
+            frameRotation == 0 || frameRotation == 180
+                    ? frameSize.getHeight() / (float) frameSize.getWidth()
+                    : frameSize.getWidth() / (float) frameSize.getHeight();
+
+    float viewAspectRatio = viewSize.getWidth() / (float) viewSize.getHeight();
+
+    // Match shortest sides together.
+    int scaledWidth;
+    int scaledHeight;
+    if (frameAspectRatio < viewAspectRatio) {
+      scaledWidth = viewSize.getWidth();
+      scaledHeight = Math.round(viewSize.getWidth() / frameAspectRatio);
+    } else {
+      scaledHeight = viewSize.getHeight();
+      scaledWidth = Math.round(viewSize.getHeight() * frameAspectRatio);
+    }
+
+    return new Size(scaledWidth, scaledHeight);
   }
 
   @Nullable

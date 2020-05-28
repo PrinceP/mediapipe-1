@@ -94,6 +94,7 @@ cc_library(
         "//mediapipe/calculators/util:association_norm_rect_calculator",
         "//mediapipe/calculators/util:collection_has_min_size_calculator",
         "//mediapipe/gpu:gpu_buffer_to_image_frame_calculator",
+        "//mediapipe/graphs/hand_tracking/subgraphs:face_detection_mobile_gpu",
         "//mediapipe/graphs/hand_tracking/subgraphs:multi_hand_detection_gpu",
         "//mediapipe/graphs/hand_tracking/subgraphs:multi_hand_gesture_gpu",
         "//mediapipe/graphs/hand_tracking/subgraphs:multi_hand_landmark_gpu",

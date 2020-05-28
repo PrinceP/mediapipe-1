@@ -71,6 +71,8 @@ android_library(
         "//mediapipe/models:palm_detection_labelmap.txt",
         "//mediapipe/models:letters.tflite",
         "//mediapipe/models:letters.txt",
+        "//mediapipe/models:face_detection_front.tflite",
+        "//mediapipe/models:face_detection_front_labelmap.txt",
     ],
     assets_dir = "",
     manifest = "AndroidManifest.xml",

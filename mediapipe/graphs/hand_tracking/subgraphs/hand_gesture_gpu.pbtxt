@@ -51,7 +51,7 @@ node {
   output_stream: "TENSORS:detection_tensors"
   node_options: {
     [type.googleapis.com/mediapipe.TfLiteInferenceCalculatorOptions] {
-      model_path: "letters.tflite"
+      model_path: "mediapipe/models/letters.tflite"
       delegate { gpu {} }
     }
   }
@@ -64,7 +64,7 @@ node_options: {
 [type.googleapis.com/mediapipe.TfLiteTensorsToClassificationCalculatorOptions] {
 min_score_threshold: 0
 top_k: 1
-label_map_path: "letters.txt"
+label_map_path: "mediapipe/models/letters.txt"
 }
 }
 }

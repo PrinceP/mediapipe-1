@@ -29,10 +29,21 @@
 #include "mediapipe/gpu/gl_calculator_helper.h"
 #include "mediapipe/gpu/gpu_buffer.h"
 #include "mediapipe/gpu/gpu_shared_data_internal.h"
+#include "mediapipe/framework/formats/landmark.pb.h"
+#include "mediapipe/framework/formats/detection.pb.h"
+
+
+
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <vector>
+using namespace std;
 
 constexpr char kInputStream[] = "input_video";
 constexpr char kOutputStream[] = "output_video";
 constexpr char kWindowName[] = "MediaPipe";
+
 
 DEFINE_string(
     calculator_graph_config_file, "",
@@ -43,6 +54,10 @@ DEFINE_string(input_video_path, "",
 DEFINE_string(output_video_path, "",
               "Full path of where to save result (.mp4 only). "
               "If not provided, show result in a window.");
+DEFINE_string(output_pose_path, "",
+              "Full path of where to save result of pose"
+              "If not provided, no effect");
+
 
 ::mediapipe::Status RunMPPGraph() {
   std::string calculator_graph_config_contents;
@@ -85,9 +100,19 @@ DEFINE_string(output_video_path, "",
 #endif
   }
 
+  //Out to pose file
+  ofstream out(FLAGS_output_pose_path, std::ios_base::out | std::ios_base::app);
+
   LOG(INFO) << "Start running the calculator graph.";
   ASSIGN_OR_RETURN(mediapipe::OutputStreamPoller poller,
-                   graph.AddOutputStreamPoller(kOutputStream));
+                    graph.AddOutputStreamPoller(kOutputStream));
+  ASSIGN_OR_RETURN(mediapipe::OutputStreamPoller multi_hand_landmarks_poller,
+                    graph.AddOutputStreamPoller("multi_hand_landmarks"));
+  ASSIGN_OR_RETURN(mediapipe::OutputStreamPoller face_detections_poller,
+		    graph.AddOutputStreamPoller("face_detections"));
+
+
+  
   MP_RETURN_IF_ERROR(graph.StartRun({}));
 
   LOG(INFO) << "Start grabbing and processing frames.";
@@ -133,6 +158,86 @@ DEFINE_string(output_video_path, "",
     if (!poller.Next(&packet)) break;
     std::unique_ptr<mediapipe::ImageFrame> output_frame;
 
+    mediapipe::Packet multi_hand_landmarks_packet;
+    mediapipe::Packet face_detections_packet;
+
+    if (!multi_hand_landmarks_poller.Next(&multi_hand_landmarks_packet)) break;
+    if (!face_detections_poller.Next(&face_detections_packet)) break;
+
+    // const auto& multi_hand_landmarks = multi_hand_landmarks_packet.Get<std::vector<std::vector<mediapipe::NormalizedLandmark>>>();
+    const auto& multi_hand_landmarks = multi_hand_landmarks_packet.Get<std::vector<mediapipe::NormalizedLandmarkList>>();
+    const auto& multi_face_detections = face_detections_packet.Get<std::vector<mediapipe::Detection>>();
+
+    // const auto& multi_hand_landmarks = multi_hand_landmarks_packet.Get<std::vector<std::vector<mediapipe::NormalizedLandmark>>>();
+	
+    int face_index = 0;
+    if(multi_face_detections.size() == 1){
+    	const auto& location_data = multi_face_detections[face_index].location_data();
+	const auto& keypoints = location_data.relative_keypoints();
+	const auto& score = multi_face_detections[face_index].score(0);
+	//std::cout << "Size = " << keypoints.size() <<"\n"; 
+	if(score > 0.90){
+		for (int i = 0; i < keypoints.size(); ++i){
+			const auto& keypoint = keypoints[i];
+			//std::cout << "( " << i << " - "<< keypoint.x() << " : "<< keypoint.y() <<  " )\n";
+			out << keypoint.x() << " " << keypoint.y() << " ";
+		}
+	}
+	else{
+		for(int i =0; i <6; i++)
+			out<<"0 0 ";
+	}
+    }
+    else{
+	for(int i =0; i <6; i++)
+		out<<"0 0 ";
+    }    
+
+    int hand_index = 0;
+    if(multi_hand_landmarks.size() == 2){
+	    for (const auto &hand_landmarks : multi_hand_landmarks)
+	    {
+		    int landmark_index = 0;
+		    out << hand_index << " "; 
+		    for (const auto &landmark : hand_landmarks.landmark())
+		    {
+			    //std::cout << "[Hand<" << hand_index << ">] Landmark<" << landmark_index++ << ">: (" << landmark.x() << ", " << landmark.y() << ", " << landmark.z() << ")\n";
+			    out << landmark.x() << " " << landmark.y() << " " << landmark.z() << " ";
+		    }
+		    //std::cout << "\n";
+		    ++hand_index;
+	    }
+    }
+    else if(multi_hand_landmarks.size() == 1){
+    	for (const auto &hand_landmarks : multi_hand_landmarks)
+	    {
+		    int landmark_index = 0;
+		    out << hand_index << " "; 
+		    for (const auto &landmark : hand_landmarks.landmark())
+		    {
+			    //std::cout << "[Hand<" << hand_index << ">] Landmark<" << landmark_index++ << ">: (" << landmark.x() << ", " << landmark.y() << ", " << landmark.z() << ")\n";
+			    out << landmark.x() << " " << landmark.y() << " " << landmark.z() << " ";
+		    }
+		    //std::cout << "\n";
+		    ++hand_index;
+	    }
+	out <<"1 ";  
+	for(int i =0; i < 21; i++) 
+		out <<"0 0 0 "; 
+    }
+    else{
+	  out <<"0 ";  
+	  for(int i =0; i < 21; i++) 
+	  	out <<"0 0 0 ";  
+          out <<"1 ";  
+	  for(int i =0; i < 21; i++) 
+	  	out <<"0 0 0 "; 	  
+    }
+    out << std::endl;
+
+
+
+
     // Convert GpuBuffer to ImageFrame.
     MP_RETURN_IF_ERROR(gpu_helper.RunInGlContext(
         [&packet, &output_frame, &gpu_helper]() -> ::mediapipe::Status {
@@ -173,6 +278,7 @@ DEFINE_string(output_video_path, "",
   }
 
   LOG(INFO) << "Shutting down.";
+  out.close();
   if (writer.isOpened()) writer.release();
   MP_RETURN_IF_ERROR(graph.CloseInputStream(kInputStream));
   return graph.WaitUntilDone();

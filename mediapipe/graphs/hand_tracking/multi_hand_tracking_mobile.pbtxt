@@ -63,7 +63,7 @@ node {
   output_stream: "FLAG:luminance_presence"
   options: {
     [mediapipe.ThresholdingCalculatorOptions.ext] {
-      threshold: 70
+      threshold: 90.0
     }
   }
 }
@@ -175,15 +175,23 @@ node {
   }
 }
 
+
+node {
+  calculator: "FaceDetectionSubgraph"
+  input_stream: "IMAGE:throttled_input_video"
+  output_stream: "DETECTIONS:face_detections"
+}
+
 # Subgraph that renders annotations and overlays them on top of the input
 # images (see multi_hand_renderer_gpu.pbtxt).
 node {
   calculator: "MultiHandRendererSubgraph"
   input_stream: "IMAGE:throttled_input_video"
 #  input_stream: "IMAGE:ensured_throttled_input_video"
-  input_stream: "DETECTIONS:multi_palm_detections"
+#  input_stream: "DETECTIONS:multi_palm_detections"
+  input_stream: "DETECTIONS:face_detections"
   input_stream: "LANDMARKS:multi_hand_landmarks"
-  input_stream: "NORM_RECTS:0:multi_palm_rects"
-  input_stream: "NORM_RECTS:1:multi_hand_rects"
+#  input_stream: "NORM_RECTS:0:multi_palm_rects"
+#  input_stream: "NORM_RECTS:1:multi_hand_rects"
   output_stream: "IMAGE:output_video"
 }

@@ -6,53 +6,66 @@ input_stream: "IMAGE:input_image"
 # A vector of NormalizedLandmarks, one for each hand.
 input_stream: "LANDMARKS:multi_hand_landmarks"
 # A vector of NormalizedRect, one for each hand.
-input_stream: "NORM_RECTS:0:multi_palm_rects"
+# input_stream: "NORM_RECTS:0:multi_palm_rects"
 # A vector of NormalizedRect, one for each hand.
-input_stream: "NORM_RECTS:1:multi_hand_rects"
+# input_stream: "NORM_RECTS:1:multi_hand_rects"
 # A vector of Detection, one for each hand.
-input_stream: "DETECTIONS:palm_detections"
+# input_stream: "DETECTIONS:palm_detections"
+input_stream: "DETECTIONS:face_detections"
 output_stream: "IMAGE:output_image"
 
 # Converts detections to drawing primitives for annotation overlay.
+#node {
+#  calculator: "DetectionsToRenderDataCalculator"
+#  input_stream: "DETECTIONS:palm_detections"
+#  output_stream: "RENDER_DATA:detection_render_data"
+#  node_options: {
+#    [type.googleapis.com/mediapipe.DetectionsToRenderDataCalculatorOptions] {
+#      thickness: 4.0
+#      color { r: 0 g: 255 b: 0 }
+#    }
+#  }
+#}
+
 node {
   calculator: "DetectionsToRenderDataCalculator"
-  input_stream: "DETECTIONS:palm_detections"
-  output_stream: "RENDER_DATA:detection_render_data"
+  input_stream: "DETECTIONS:face_detections"
+  output_stream: "RENDER_DATA:face_detection_render_data"
   node_options: {
     [type.googleapis.com/mediapipe.DetectionsToRenderDataCalculatorOptions] {
-      thickness: 4.0
-      color { r: 0 g: 255 b: 0 }
+      thickness: 2.0
+      color { r: 236 g: 188 b: 180 }
     }
   }
 }
 
 # Converts normalized rects to drawing primitives for annotation overlay.
-node {
-  calculator: "RectToRenderDataCalculator"
-  input_stream: "NORM_RECTS:multi_hand_rects"
-  output_stream: "RENDER_DATA:multi_hand_rects_render_data"
-  node_options: {
-    [type.googleapis.com/mediapipe.RectToRenderDataCalculatorOptions] {
-      filled: false
-      color { r: 255 g: 0 b: 0 }
-      thickness: 4.0
-    }
-  }
-}
+#node {
+#  calculator: "RectToRenderDataCalculator"
+#  input_stream: "NORM_RECTS:multi_hand_rects"
+#  output_stream: "RENDER_DATA:multi_hand_rects_render_data"
+#  node_options: {
+#    [type.googleapis.com/mediapipe.RectToRenderDataCalculatorOptions] {
+#      filled: false
+#      color { r: 255 g: 0 b: 0 }
+#      thickness: 4.0
+#    }
+#  }
+#}
 
 # Converts normalized rects to drawing primitives for annotation overlay.
-node {
-  calculator: "RectToRenderDataCalculator"
-  input_stream: "NORM_RECTS:multi_palm_rects"
-  output_stream: "RENDER_DATA:multi_palm_rects_render_data"
-  node_options: {
-    [type.googleapis.com/mediapipe.RectToRenderDataCalculatorOptions] {
-      filled: false
-      color { r: 125 g: 0 b: 122 }
-      thickness: 4.0
-    }
-  }
-}
+#node {
+#  calculator: "RectToRenderDataCalculator"
+#  input_stream: "NORM_RECTS:multi_palm_rects"
+#  output_stream: "RENDER_DATA:multi_palm_rects_render_data"
+#  node_options: {
+#    [type.googleapis.com/mediapipe.RectToRenderDataCalculatorOptions] {
+#      filled: false
+#      color { r: 125 g: 0 b: 122 }
+#      thickness: 4.0
+#    }
+#  }
+#}
 
 # Outputs each element of multi_palm_landmarks at a fake timestamp for the rest
 # of the graph to process. At the end of the loop, outputs the BATCH_END
@@ -114,9 +127,9 @@ node {
       landmark_connections: 19
       landmark_connections: 19
       landmark_connections: 20
-      landmark_color { r: 255 g: 0 b: 0 }
-      connection_color { r: 0 g: 255 b: 0 }
-      thickness: 4.0
+      landmark_color { r: 0 g: 0 b: 255 }
+      connection_color { r: 0 g: 0 b: 255 }
+      thickness: 10.0
     }
   }
 }
@@ -134,11 +147,12 @@ node {
 # Draws annotations and overlays them on top of the input images. Consumes
 # a vector of RenderData objects and draws each of them on the input frame.
 node {
-  calculator: "AnnotationOverlayCalculator"
+  calculator: "AnnotationOverlayDisableCalculator"
   input_stream: "IMAGE_GPU:input_image"
-  input_stream: "detection_render_data"
-  input_stream: "multi_hand_rects_render_data"
-  input_stream: "multi_palm_rects_render_data"
+  input_stream: "face_detection_render_data"
+#  input_stream: "detection_render_data"
+#  input_stream: "multi_hand_rects_render_data"
+#  input_stream: "multi_palm_rects_render_data"
   input_stream: "VECTOR:0:multi_hand_landmarks_render_data"
   output_stream: "IMAGE_GPU:output_image"
 }

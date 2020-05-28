@@ -179,7 +179,21 @@ public class MainActivity extends AppCompatActivity {
 
   @Override
   protected void onPause() {
+
+
     super.onPause();
+
+//    previewFrameTexture.release();
+//    previewDisplayView.setVisibility(View.GONE);
+//
+//    if(converter!=null)
+//      converter.close();
+//    previewDisplayView = null;
+////    if(cameraHelper!=null) {
+////      cameraHelper.unbindInstances();
+////    }
+
+
     converter.close();
   }
 
