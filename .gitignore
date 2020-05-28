@@ -9,4 +9,4 @@ mediapipe/MediaPipe.xcodeproj
 mediapipe/MediaPipe.tulsiproj/*.tulsiconf-user
 mediapipe/.aswb
 WORKSPACE
-data/
+data/*
