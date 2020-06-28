@@ -38,6 +38,7 @@ android_binary(
     assets = [
         "//mediapipe/graphs/hair_segmentation:mobile_gpu.binarypb",
         "//mediapipe/models:hair_segmentation.tflite",
+        "//mediapipe/models:portrait_segmentation.tflite",
     ],
     assets_dir = "",
     manifest = "//mediapipe/examples/android/src/java/com/google/mediapipe/apps/basic:AndroidManifest.xml",
