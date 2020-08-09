@@ -36,7 +36,7 @@ exports_files([
 mediapipe_proto_library(
     name = "calculator_proto",
     srcs = ["calculator.proto"],
-    visibility = [":mediapipe_internal"],
+    visibility = ["//visibility:public"],
     deps = [
         "//mediapipe/framework:calculator_options_proto",
         "//mediapipe/framework:mediapipe_options_proto",
@@ -68,7 +68,7 @@ mediapipe_proto_library(
 mediapipe_proto_library(
     name = "calculator_profile_proto",
     srcs = ["calculator_profile.proto"],
-    visibility = [":mediapipe_internal"],
+    visibility = ["//visibility:public"],
     deps = [
         "//mediapipe/framework:calculator_options_proto",
         "//mediapipe/framework:calculator_proto",
@@ -112,7 +112,7 @@ mediapipe_proto_library(
 mediapipe_proto_library(
     name = "stream_handler_proto",
     srcs = ["stream_handler.proto"],
-    visibility = ["//mediapipe/framework:__subpackages__"],
+    visibility = [":mediapipe_internal"],
     deps = ["//mediapipe/framework:mediapipe_options_proto"],
 )
 
@@ -130,7 +130,7 @@ mediapipe_proto_library(
 mediapipe_proto_library(
     name = "thread_pool_executor_proto",
     srcs = ["thread_pool_executor.proto"],
-    visibility = ["//mediapipe/framework:__subpackages__"],
+    visibility = [":mediapipe_internal"],
     deps = ["//mediapipe/framework:mediapipe_options_proto"],
 )
 
@@ -830,6 +830,8 @@ cc_library(
         ":port",
         ":timestamp",
         ":type_map",
+        "//mediapipe/framework/deps:no_destructor",
+        "//mediapipe/framework/deps:registration",
         "//mediapipe/framework/port:core_proto",
         "//mediapipe/framework/port:integral_types",
         "//mediapipe/framework/port:logging",
@@ -921,6 +923,15 @@ cc_library(
     ],
 )
 
+# When --copt=-fno-rtti is set, MEDIAPIPE_HAS_RTTI is cleared in port.h.
+# To explicitly clear MEDIAPIPE_HAS_RTTI, compile with:
+#   bazel build --define=disable_rtti_and_exceptions=true
+config_setting(
+    name = "disable_rtti_and_exceptions",
+    define_values = {"disable_rtti_and_exceptions": "true"},
+    visibility = ["//visibility:public"],
+)
+
 cc_library(
     name = "port",
     hdrs = ["port.h"],
@@ -929,6 +940,11 @@ cc_library(
     }) + select({
         "//conditions:default": [],
         "//mediapipe/gpu:disable_gpu": ["MEDIAPIPE_DISABLE_GPU"],
+    }) + select({
+        "//conditions:default": [],
+        "//mediapipe/framework:disable_rtti_and_exceptions": [
+            "MEDIAPIPE_HAS_RTTI=0",
+        ],
     }),
     visibility = [
         "//mediapipe/framework:__subpackages__",
@@ -1165,6 +1181,7 @@ cc_test(
         "//mediapipe/framework/port:status",
         "//mediapipe/framework/tool:status_util",
         "//mediapipe/framework/tool:tag_map_helper",
+        "@com_google_absl//absl/container:flat_hash_set",
     ],
 )
 
@@ -1515,6 +1532,21 @@ cc_test(
     srcs = ["packet_test.cc"],
     linkstatic = 1,
     deps = [
+        ":packet",
+        ":packet_test_cc_proto",
+        ":type_map",
+        "//mediapipe/framework/port:core_proto",
+        "//mediapipe/framework/port:gtest_main",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_test(
+    name = "packet_registration_test",
+    size = "small",
+    srcs = ["packet_registration_test.cc"],
+    deps = [
+        ":calculator_framework",
         ":packet",
         ":packet_test_cc_proto",
         ":type_map",

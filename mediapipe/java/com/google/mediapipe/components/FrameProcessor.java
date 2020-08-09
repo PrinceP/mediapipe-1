@@ -20,6 +20,7 @@ import android.media.AudioFormat;
 import android.os.Handler;
 import android.util.Log;
 import com.google.common.base.Preconditions;
+import com.google.mediapipe.proto.CalculatorProto.CalculatorGraphConfig;
 import com.google.mediapipe.framework.AndroidAssetUtil;
 import com.google.mediapipe.framework.AndroidPacketCreator;
 import com.google.mediapipe.framework.Graph;
@@ -32,10 +33,12 @@ import com.google.mediapipe.framework.SurfaceOutput;
 import com.google.mediapipe.framework.TextureFrame;
 import java.io.File;
 import java.nio.ByteBuffer;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nullable;
 
@@ -71,7 +74,7 @@ public class FrameProcessor implements TextureFrameProcessor, AudioDataProcessor
   private double audioSampleRate;
 
   /**
-   * Constructor.
+   * Constructor for video input/output.
    *
    * @param context an Android {@link Context}.
    * @param parentNativeContext a native handle to a GL context. The GL context(s) used by the
@@ -86,50 +89,61 @@ public class FrameProcessor implements TextureFrameProcessor, AudioDataProcessor
       long parentNativeContext,
       String graphName,
       String inputStream,
-      String outputStream) {
-    mediapipeGraph = new Graph();
-    videoInputStream = inputStream;
-    videoOutputStream = outputStream;
-
+      @Nullable String outputStream) {
     try {
-      if (new File(graphName).isAbsolute()) {
-        mediapipeGraph.loadBinaryGraph(graphName);
-      } else {
-        mediapipeGraph.loadBinaryGraph(
-            AndroidAssetUtil.getAssetBytes(context.getAssets(), graphName));
-      }
-
-      packetCreator = new AndroidPacketCreator(mediapipeGraph);
-      mediapipeGraph.addPacketCallback(
-          videoOutputStream,
-          new PacketCallback() {
-            @Override
-            public void process(Packet packet) {
-              List<TextureFrameConsumer> currentConsumers;
-              synchronized (this) {
-                currentConsumers = videoConsumers;
-              }
-              for (TextureFrameConsumer consumer : currentConsumers) {
-                TextureFrame frame = PacketGetter.getTextureFrame(packet);
-                if (Log.isLoggable(TAG, Log.VERBOSE)) {
-                  Log.v(
-                      TAG,
-                      String.format(
-                          "Output tex: %d width: %d height: %d to consumer %h",
-                          frame.getTextureName(), frame.getWidth(), frame.getHeight(), consumer));
-                }
-                consumer.onNewFrame(frame);
-              }
-            }
-          });
-
-      mediapipeGraph.setParentGlContext(parentNativeContext);
+      initializeGraphAndPacketCreator(context, graphName);
+      addVideoStreams(parentNativeContext, inputStream, outputStream);
     } catch (MediaPipeException e) {
       // TODO: do not suppress exceptions here!
-      Log.e(TAG, "Mediapipe error: ", e);
+      Log.e(TAG, "MediaPipe error: ", e);
     }
+  }
 
-    videoSurfaceOutput = mediapipeGraph.addSurfaceOutput(videoOutputStream);
+  /**
+   * Constructor.
+   *
+   * @param context an Android {@link Context}.
+   * @param graphName the name of the file containing the binary representation of the graph.
+   */
+  public FrameProcessor(Context context, String graphName) {
+    initializeGraphAndPacketCreator(context, graphName);
+  }
+
+  /**
+   * Constructor.
+   *
+   * @param graphConfig the proto object representation of the graph.
+   */
+  public FrameProcessor(CalculatorGraphConfig graphConfig) {
+    initializeGraphAndPacketCreator(graphConfig);
+  }
+
+  /**
+   * Initializes a graph for processing data in real time.
+   *
+   * @param context an Android {@link Context}.
+   * @param graphName the name of the file containing the binary representation of the graph.
+   */
+  private void initializeGraphAndPacketCreator(Context context, String graphName) {
+    mediapipeGraph = new Graph();
+    if (new File(graphName).isAbsolute()) {
+      mediapipeGraph.loadBinaryGraph(graphName);
+    } else {
+      mediapipeGraph.loadBinaryGraph(
+          AndroidAssetUtil.getAssetBytes(context.getAssets(), graphName));
+    }
+    packetCreator = new AndroidPacketCreator(mediapipeGraph);
+  }
+
+  /**
+   * Initializes a graph for processing data in real time.
+   *
+   * @param graphConfig the proto object representation of the graph.
+   */
+  private void initializeGraphAndPacketCreator(CalculatorGraphConfig graphConfig) {
+    mediapipeGraph = new Graph();
+    mediapipeGraph.loadBinaryGraph(graphConfig);
+    packetCreator = new AndroidPacketCreator(mediapipeGraph);
   }
 
   /** Callback for errors occurring during processing in the graph. */
@@ -168,6 +182,53 @@ public class FrameProcessor implements TextureFrameProcessor, AudioDataProcessor
   }
 
   /**
+   * Adds input streams to process video data and output streams that output processed video data.
+   *
+   * @param parentNativeContext a native handle to a GL context. The GL context(s) used by the
+   *     calculators in the graph will join the parent context's sharegroup, so that textures
+   *     generated by the calculators are available in the parent context, and vice versa.
+   * @param inputStream the graph input stream that will receive input video frames.
+   * @param outputStream the output stream from which output frames will be produced.
+   */
+  public void addVideoStreams(
+      long parentNativeContext, @Nullable String inputStream, @Nullable String outputStream) {
+
+    videoInputStream = inputStream;
+    videoOutputStream = outputStream;
+
+    mediapipeGraph.setParentGlContext(parentNativeContext);
+
+    if (videoOutputStream != null) {
+      mediapipeGraph.addPacketCallback(
+          videoOutputStream,
+          new PacketCallback() {
+            @Override
+            public void process(Packet packet) {
+              List<TextureFrameConsumer> currentConsumers;
+              synchronized (this) {
+                currentConsumers = videoConsumers;
+              }
+              for (TextureFrameConsumer consumer : currentConsumers) {
+                // Note: each consumer will release its TextureFrame, so each gets a separate object
+                // (though they all reference the same data).
+                TextureFrame frame = PacketGetter.getTextureFrame(packet);
+                if (Log.isLoggable(TAG, Log.VERBOSE)) {
+                  Log.v(
+                      TAG,
+                      String.format(
+                          "Output tex: %d width: %d height: %d to consumer %h",
+                          frame.getTextureName(), frame.getWidth(), frame.getHeight(), consumer));
+                }
+                consumer.onNewFrame(frame);
+              }
+            }
+          });
+
+      videoSurfaceOutput = mediapipeGraph.addSurfaceOutput(videoOutputStream);
+    }
+  }
+
+  /**
    * Adds input streams to process audio data and output streams that output processed audio data.
    *
    * @param inputStream the graph input stream that will receive input audio samples.
@@ -183,11 +244,12 @@ public class FrameProcessor implements TextureFrameProcessor, AudioDataProcessor
     audioInputStream = inputStream;
     audioOutputStream = outputStream;
     numAudioChannels = numChannels;
+    int audioChannelMask =
+        numAudioChannels == 2 ? AudioFormat.CHANNEL_IN_STEREO : AudioFormat.CHANNEL_IN_MONO;
     audioSampleRate = audioSampleRateInHz;
 
     if (audioInputStream != null) {
-      Packet audioHeader =
-          packetCreator.createTimeSeriesHeader(numAudioChannels, audioSampleRateInHz);
+      Packet audioHeader = packetCreator.createTimeSeriesHeader(numAudioChannels, audioSampleRate);
       mediapipeGraph.setStreamHeader(audioInputStream, audioHeader);
     }
 
@@ -195,8 +257,8 @@ public class FrameProcessor implements TextureFrameProcessor, AudioDataProcessor
       AudioFormat audioFormat =
           new AudioFormat.Builder()
               .setEncoding(AUDIO_ENCODING)
-              .setSampleRate((int) audioSampleRateInHz)
-              .setChannelMask(numAudioChannels)
+              .setSampleRate((int) audioSampleRate)
+              .setChannelMask(audioChannelMask)
               .build();
       mediapipeGraph.addPacketCallback(
           audioOutputStream,
@@ -336,9 +398,10 @@ public class FrameProcessor implements TextureFrameProcessor, AudioDataProcessor
 
   /**
    * Returns true if the MediaPipe graph can accept one more input frame.
+   *
    * @throws MediaPipeException for any error status.
    */
-  private boolean maybeAcceptNewFrame() {
+  private boolean maybeAcceptNewFrame(long timestamp) {
     if (!started.getAndSet(true)) {
       startGraph();
     }
@@ -358,7 +421,7 @@ public class FrameProcessor implements TextureFrameProcessor, AudioDataProcessor
                 frame.getTextureName(), frame.getWidth(), frame.getHeight()));
       }
 
-      if (!maybeAcceptNewFrame()) {
+      if (!maybeAcceptNewFrame(frame.getTimestamp())) {
         return;
       }
 
@@ -414,7 +477,7 @@ public class FrameProcessor implements TextureFrameProcessor, AudioDataProcessor
   public void onNewFrame(final Bitmap bitmap, long timestamp) {
     Packet packet = null;
     try {
-      if (!maybeAcceptNewFrame()) {
+      if (!maybeAcceptNewFrame(timestamp)) {
         return;
       }
 

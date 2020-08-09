@@ -16,25 +16,28 @@
 #include <vector>
 
 #include "mediapipe/calculators/tflite/tflite_converter_calculator.pb.h"
-#include "mediapipe/calculators/tflite/util.h"
 #include "mediapipe/framework/calculator_framework.h"
 #include "mediapipe/framework/formats/image_frame.h"
 #include "mediapipe/framework/formats/matrix.h"
 #include "mediapipe/framework/port/ret_check.h"
 #include "mediapipe/util/resource_util.h"
+#include "mediapipe/util/tflite/config.h"
 #include "tensorflow/lite/error_reporter.h"
 #include "tensorflow/lite/interpreter.h"
 
-#if !defined(MEDIAPIPE_DISABLE_GL_COMPUTE)
-#include "mediapipe/gpu/gl_calculator_helper.h"
+#ifndef MEDIAPIPE_DISABLE_GPU
 #include "mediapipe/gpu/gpu_buffer.h"
+#endif  // MEDIAPIPE_DISABLE_GPU
+
+#if MEDIAPIPE_TFLITE_GL_INFERENCE
+#include "mediapipe/gpu/gl_calculator_helper.h"
 #include "tensorflow/lite/delegates/gpu/gl/gl_buffer.h"
 #include "tensorflow/lite/delegates/gpu/gl/gl_program.h"
 #include "tensorflow/lite/delegates/gpu/gl/gl_shader.h"
 #include "tensorflow/lite/delegates/gpu/gl_delegate.h"
-#endif  //  !MEDIAPIPE_DISABLE_GPU
+#endif  // MEDIAPIPE_TFLITE_GL_INFERENCE
 
-#if defined(MEDIAPIPE_IOS)
+#if MEDIAPIPE_TFLITE_METAL_INFERENCE
 #import <CoreVideo/CoreVideo.h>
 #import <Metal/Metal.h>
 #import <MetalKit/MetalKit.h>
@@ -43,13 +46,7 @@
 #include "mediapipe/gpu/MPPMetalUtil.h"
 #include "mediapipe/gpu/gpu_buffer.h"
 #include "tensorflow/lite/delegates/gpu/metal_delegate.h"
-#endif  // iOS
-
-#if !defined(MEDIAPIPE_DISABLE_GL_COMPUTE)
-typedef ::tflite::gpu::gl::GlBuffer GpuTensor;
-#elif defined(MEDIAPIPE_IOS)
-typedef id<MTLBuffer> GpuTensor;
-#endif
+#endif  // MEDIAPIPE_TFLITE_METAL_INFERENCE
 
 namespace {
 constexpr int kWorkgroupSize = 8;  // Block size for GPU shader.
@@ -73,7 +70,7 @@ constexpr char kMatrixTag[] = "MATRIX";
 namespace mediapipe {
 
 namespace {
-#if !defined(MEDIAPIPE_DISABLE_GL_COMPUTE)
+#if MEDIAPIPE_TFLITE_GL_INFERENCE
 using ::tflite::gpu::gl::CreateReadWriteShaderStorageBuffer;
 using ::tflite::gpu::gl::GlProgram;
 using ::tflite::gpu::gl::GlShader;
@@ -83,13 +80,13 @@ struct GPUData {
   GlShader shader;
   GlProgram program;
 };
-#elif defined(MEDIAPIPE_IOS)
+#elif MEDIAPIPE_TFLITE_METAL_INFERENCE
 struct GPUData {
   int elements = 1;
   GpuTensor buffer;
   id<MTLComputePipelineState> pipeline_state;
 };
-#endif
+#endif  // MEDIAPIPE_TFLITE_GL_INFERENCE
 
 }  // namespace
 
@@ -148,8 +145,7 @@ class TfLiteConverterCalculator : public CalculatorBase {
   ::mediapipe::Status LoadOptions(CalculatorContext* cc);
   template <class T>
   ::mediapipe::Status NormalizeImage(const ImageFrame& image_frame,
-                                     bool zero_center, bool flip_vertically,
-                                     float* tensor_ptr);
+                                     bool flip_vertically, float* tensor_ptr);
   ::mediapipe::Status CopyMatrixToTensor(const Matrix& matrix,
                                          float* tensor_ptr);
   ::mediapipe::Status ProcessCPU(CalculatorContext* cc);
@@ -157,26 +153,35 @@ class TfLiteConverterCalculator : public CalculatorBase {
 
   std::unique_ptr<tflite::Interpreter> interpreter_ = nullptr;
 
-#if !defined(MEDIAPIPE_DISABLE_GL_COMPUTE)
+#if MEDIAPIPE_TFLITE_GL_INFERENCE
   mediapipe::GlCalculatorHelper gpu_helper_;
   std::unique_ptr<GPUData> gpu_data_out_;
-#elif defined(MEDIAPIPE_IOS)
+#elif MEDIAPIPE_TFLITE_METAL_INFERENCE
   MPPMetalHelper* gpu_helper_ = nullptr;
   std::unique_ptr<GPUData> gpu_data_out_;
-#endif
+#endif  // MEDIAPIPE_TFLITE_GL_INFERENCE
 
   bool initialized_ = false;
   bool use_gpu_ = false;
-  bool zero_center_ = true;  // normalize range to [-1,1] | otherwise [0,1]
-  bool use_custom_normalization_ = false;
-  float custom_div_ = -1.0f;
-  float custom_sub_ = -1.0f;
+  absl::optional<std::pair<float, float>> output_range_;
   bool flip_vertically_ = false;
   bool row_major_matrix_ = false;
   bool use_quantized_tensors_ = false;
   int max_num_channels_ = 3;
 };
 REGISTER_CALCULATOR(TfLiteConverterCalculator);
+
+namespace {
+template <class CC>
+bool ShouldUseGpu(CC* cc) {
+#if MEDIAPIPE_TFLITE_GPU_SUPPORTED
+  return cc->Inputs().HasTag(kGpuBufferTag) ||
+         cc->Outputs().HasTag(kTensorsGpuTag);
+#else
+  return false;
+#endif  // MEDIAPIPE_TFLITE_GPU_SUPPORTED
+}
+}  // namespace
 
 ::mediapipe::Status TfLiteConverterCalculator::GetContract(
     CalculatorContract* cc) {
@@ -189,37 +194,31 @@ REGISTER_CALCULATOR(TfLiteConverterCalculator);
   RET_CHECK(cc->Outputs().HasTag(kTensorsTag) ^
             cc->Outputs().HasTag(kTensorsGpuTag));
 
-  bool use_gpu = false;
-
   if (cc->Inputs().HasTag(kImageFrameTag)) {
     cc->Inputs().Tag(kImageFrameTag).Set<ImageFrame>();
   }
   if (cc->Inputs().HasTag(kMatrixTag)) {
     cc->Inputs().Tag(kMatrixTag).Set<Matrix>();
   }
-#if !defined(MEDIAPIPE_DISABLE_GPU) && !defined(__EMSCRIPTEN__)
+#ifndef MEDIAPIPE_DISABLE_GPU
   if (cc->Inputs().HasTag(kGpuBufferTag)) {
     cc->Inputs().Tag(kGpuBufferTag).Set<mediapipe::GpuBuffer>();
-    use_gpu |= true;
   }
-#endif  //  !MEDIAPIPE_DISABLE_GPU
+#endif  // MEDIAPIPE_DISABLE_GPU
 
   if (cc->Outputs().HasTag(kTensorsTag)) {
     cc->Outputs().Tag(kTensorsTag).Set<std::vector<TfLiteTensor>>();
   }
-#if !defined(MEDIAPIPE_DISABLE_GPU) && !defined(__EMSCRIPTEN__)
   if (cc->Outputs().HasTag(kTensorsGpuTag)) {
     cc->Outputs().Tag(kTensorsGpuTag).Set<std::vector<GpuTensor>>();
-    use_gpu |= true;
   }
-#endif  //  !MEDIAPIPE_DISABLE_GPU
 
-  if (use_gpu) {
-#if !defined(MEDIAPIPE_DISABLE_GL_COMPUTE)
+  if (ShouldUseGpu(cc)) {
+#if MEDIAPIPE_TFLITE_GL_INFERENCE
     MP_RETURN_IF_ERROR(mediapipe::GlCalculatorHelper::UpdateContract(cc));
-#elif defined(MEDIAPIPE_IOS)
+#elif MEDIAPIPE_TFLITE_METAL_INFERENCE
     MP_RETURN_IF_ERROR([MPPMetalHelper updateContract:cc]);
-#endif
+#endif  // MEDIAPIPE_TFLITE_GL_INFERENCE
   }
 
   // Assign this calculator's default InputStreamHandler.
@@ -233,14 +232,7 @@ REGISTER_CALCULATOR(TfLiteConverterCalculator);
 
   MP_RETURN_IF_ERROR(LoadOptions(cc));
 
-  if (cc->Inputs().HasTag(kGpuBufferTag) ||
-      cc->Outputs().HasTag(kGpuBufferTag)) {
-#if !defined(MEDIAPIPE_DISABLE_GPU) && !defined(__EMSCRIPTEN__)
-    use_gpu_ = true;
-#else
-    RET_CHECK_FAIL() << "GPU processing not enabled.";
-#endif
-  }
+  use_gpu_ = ShouldUseGpu(cc);
 
   if (use_gpu_) {
     // Cannot mix CPU/GPU streams.
@@ -248,12 +240,12 @@ REGISTER_CALCULATOR(TfLiteConverterCalculator);
               cc->Outputs().HasTag(kTensorsGpuTag));
     // Cannot use quantization.
     use_quantized_tensors_ = false;
-#if !defined(MEDIAPIPE_DISABLE_GL_COMPUTE)
+#if MEDIAPIPE_TFLITE_GL_INFERENCE
     MP_RETURN_IF_ERROR(gpu_helper_.Open(cc));
-#elif defined(MEDIAPIPE_IOS)
+#elif MEDIAPIPE_TFLITE_METAL_INFERENCE
     gpu_helper_ = [[MPPMetalHelper alloc] initWithCalculatorContext:cc];
     RET_CHECK(gpu_helper_);
-#endif
+#endif  // MEDIAPIPE_TFLITE_GL_INFERENCE
   } else {
     interpreter_ = absl::make_unique<tflite::Interpreter>();
     interpreter_->AddTensors(1);
@@ -282,12 +274,12 @@ REGISTER_CALCULATOR(TfLiteConverterCalculator);
 }
 
 ::mediapipe::Status TfLiteConverterCalculator::Close(CalculatorContext* cc) {
-#if !defined(MEDIAPIPE_DISABLE_GL_COMPUTE)
+  interpreter_.reset();
+#if MEDIAPIPE_TFLITE_GL_INFERENCE
   gpu_helper_.RunInGlContext([this] { gpu_data_out_.reset(); });
-#endif
-#if defined(MEDIAPIPE_IOS)
+#elif MEDIAPIPE_TFLITE_METAL_INFERENCE
   gpu_data_out_.reset();
-#endif
+#endif  // MEDIAPIPE_TFLITE_GL_INFERENCE
   return ::mediapipe::OkStatus();
 }
 
@@ -318,8 +310,14 @@ REGISTER_CALCULATOR(TfLiteConverterCalculator);
         RET_CHECK(format != mediapipe::ImageFormat::VEC32F1)
             << "Only 8-bit input images are supported for quantization.";
         quant.type = kTfLiteAffineQuantization;
-        quant.params = nullptr;
-        // Optional: Set 'quant' quantization params here if needed.
+        auto quant_params = static_cast<TfLiteAffineQuantization*>(
+            malloc(sizeof(TfLiteAffineQuantization)));
+        quant_params->scale = TfLiteFloatArrayCreate(1);
+        quant_params->scale->data[0] = 1.0;
+        quant_params->zero_point = TfLiteIntArrayCreate(1);
+        quant_params->zero_point->data[0] = 0;
+        quant_params->quantized_dimension = 0;
+        quant.params = quant_params;
         interpreter_->SetTensorParametersReadWrite(0, kTfLiteUInt8, "",
                                                    {channels_preserved}, quant);
       } else {
@@ -359,11 +357,11 @@ REGISTER_CALCULATOR(TfLiteConverterCalculator);
       float* tensor_buffer = tensor->data.f;
       RET_CHECK(tensor_buffer);
       if (image_frame.ByteDepth() == 1) {
-        MP_RETURN_IF_ERROR(NormalizeImage<uint8>(
-            image_frame, zero_center_, flip_vertically_, tensor_buffer));
+        MP_RETURN_IF_ERROR(NormalizeImage<uint8>(image_frame, flip_vertically_,
+                                                 tensor_buffer));
       } else if (image_frame.ByteDepth() == 4) {
-        MP_RETURN_IF_ERROR(NormalizeImage<float>(
-            image_frame, zero_center_, flip_vertically_, tensor_buffer));
+        MP_RETURN_IF_ERROR(NormalizeImage<float>(image_frame, flip_vertically_,
+                                                 tensor_buffer));
       } else {
         return ::mediapipe::InternalError(
             "Only byte-based (8 bit) and float (32 bit) images supported.");
@@ -414,7 +412,7 @@ REGISTER_CALCULATOR(TfLiteConverterCalculator);
 
 ::mediapipe::Status TfLiteConverterCalculator::ProcessGPU(
     CalculatorContext* cc) {
-#if !defined(MEDIAPIPE_DISABLE_GL_COMPUTE)
+#if MEDIAPIPE_TFLITE_GL_INFERENCE
   // GpuBuffer to tflite::gpu::GlBuffer conversion.
   const auto& input =
       cc->Inputs().Tag(kGpuBufferTag).Get<mediapipe::GpuBuffer>();
@@ -424,11 +422,11 @@ REGISTER_CALCULATOR(TfLiteConverterCalculator);
         auto src = gpu_helper_.CreateSourceTexture(input);
         glActiveTexture(GL_TEXTURE0 + 0);
         glBindTexture(GL_TEXTURE_2D, src.name());
-        RET_CHECK_CALL(gpu_data_out_->buffer.BindToIndex(1));
+        MP_RETURN_IF_ERROR(gpu_data_out_->buffer.BindToIndex(1));
         const tflite::gpu::uint3 workgroups = {
             NumGroups(input.width(), kWorkgroupSize),
             NumGroups(input.height(), kWorkgroupSize), 1};
-        RET_CHECK_CALL(gpu_data_out_->program.Dispatch(workgroups));
+        MP_RETURN_IF_ERROR(gpu_data_out_->program.Dispatch(workgroups));
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
         glBindTexture(GL_TEXTURE_2D, 0);
         src.Release();
@@ -442,16 +440,16 @@ REGISTER_CALCULATOR(TfLiteConverterCalculator);
         output_tensors->resize(1);
         {
           GpuTensor& tensor = output_tensors->at(0);
-          RET_CHECK_CALL(CreateReadWriteShaderStorageBuffer<float>(
+          MP_RETURN_IF_ERROR(CreateReadWriteShaderStorageBuffer<float>(
               gpu_data_out_->elements, &tensor));
-          RET_CHECK_CALL(CopyBuffer(gpu_data_out_->buffer, tensor));
+          MP_RETURN_IF_ERROR(CopyBuffer(gpu_data_out_->buffer, tensor));
         }
         return ::mediapipe::OkStatus();
       }));
   cc->Outputs()
       .Tag(kTensorsGpuTag)
       .Add(output_tensors.release(), cc->InputTimestamp());
-#elif defined(MEDIAPIPE_IOS)
+#elif MEDIAPIPE_TFLITE_METAL_INFERENCE
   // GpuBuffer to id<MTLBuffer> conversion.
   const auto& input =
       cc->Inputs().Tag(kGpuBufferTag).Get<mediapipe::GpuBuffer>();
@@ -490,13 +488,13 @@ REGISTER_CALCULATOR(TfLiteConverterCalculator);
       .Add(output_tensors.release(), cc->InputTimestamp());
 #else
   RET_CHECK_FAIL() << "GPU processing is not enabled.";
-#endif
+#endif  // MEDIAPIPE_TFLITE_GL_INFERENCE
 
   return ::mediapipe::OkStatus();
 }
 
 ::mediapipe::Status TfLiteConverterCalculator::InitGpu(CalculatorContext* cc) {
-#if !defined(MEDIAPIPE_DISABLE_GPU) && !defined(__EMSCRIPTEN__)
+#if MEDIAPIPE_TFLITE_GPU_SUPPORTED
   // Get input image sizes.
   const auto& input =
       cc->Inputs().Tag(kGpuBufferTag).Get<mediapipe::GpuBuffer>();
@@ -512,13 +510,13 @@ REGISTER_CALCULATOR(TfLiteConverterCalculator);
     RET_CHECK_FAIL() << "Unsupported GPU input format.";
   if (include_alpha && (format != mediapipe::ImageFormat::SRGBA))
     RET_CHECK_FAIL() << "Num input channels is less than desired output.";
-#endif  //  !MEDIAPIPE_DISABLE_GPU
+#endif  // MEDIAPIPE_TFLITE_GPU_SUPPORTED
 
-#if !defined(MEDIAPIPE_DISABLE_GL_COMPUTE)
+#if MEDIAPIPE_TFLITE_GL_INFERENCE
   MP_RETURN_IF_ERROR(gpu_helper_.RunInGlContext(
       [this, &include_alpha, &input, &single_channel]() -> ::mediapipe::Status {
         // Device memory.
-        RET_CHECK_CALL(
+        MP_RETURN_IF_ERROR(
             ::tflite::gpu::gl::CreateReadWriteShaderStorageBuffer<float>(
                 gpu_data_out_->elements, &gpu_data_out_->buffer));
 
@@ -541,7 +539,13 @@ REGISTER_CALCULATOR(TfLiteConverterCalculator);
             $6  // alpha channel
           })",
             /*$0=*/kWorkgroupSize, /*$1=*/input.width(), /*$2=*/input.height(),
-            /*$3=*/zero_center_ ? "pixel = (pixel - 0.5) * 2.0;" : "",
+            /*$3=*/
+            output_range_.has_value()
+                ? absl::Substitute(
+                      "pixel = pixel * float($0) + float($1);",
+                      (output_range_->second - output_range_->first),
+                      output_range_->first)
+                : "",
             /*$4=*/flip_vertically_ ? "(width_height.y - 1 - gid.y)" : "gid.y",
             /*$5=*/
             single_channel
@@ -552,14 +556,14 @@ REGISTER_CALCULATOR(TfLiteConverterCalculator);
             include_alpha ? "output_data.elements[linear_index + 3] = pixel.w;"
                           : "",
             /*$7=*/max_num_channels_);
-        RET_CHECK_CALL(GlShader::CompileShader(GL_COMPUTE_SHADER, shader_source,
-                                               &gpu_data_out_->shader));
-        RET_CHECK_CALL(GlProgram::CreateWithShader(gpu_data_out_->shader,
-                                                   &gpu_data_out_->program));
+        MP_RETURN_IF_ERROR(GlShader::CompileShader(
+            GL_COMPUTE_SHADER, shader_source, &gpu_data_out_->shader));
+        MP_RETURN_IF_ERROR(GlProgram::CreateWithShader(
+            gpu_data_out_->shader, &gpu_data_out_->program));
         return ::mediapipe::OkStatus();
       }));
 
-#elif defined(MEDIAPIPE_IOS)
+#elif MEDIAPIPE_TFLITE_METAL_INFERENCE
 
   RET_CHECK(include_alpha)
       << "iOS GPU inference currently accepts only RGBA input.";
@@ -596,7 +600,12 @@ REGISTER_CALCULATOR(TfLiteConverterCalculator);
       )",
       /*$0=*/include_alpha ? "float4" : "float3",
       /*$1=*/include_alpha ? "rgba" : "rgb",
-      /*$2=*/zero_center_ ? "pixel = (pixel - 0.5) * 2.0;" : "",
+      /*$2=*/
+      output_range_.has_value()
+          ? absl::Substitute("pixel = pixel * float($0) + float($1);",
+                             (output_range_->second - output_range_->first),
+                             output_range_->first)
+          : "",
       /*$3=*/flip_vertically_ ? "(in_tex.get_height() - 1 - gid.y)" : "gid.y",
       /*$4=*/include_alpha ? 4 : 3,
       /*$5=*/include_alpha ? "out_buf[linear_index + 3] = pixel.w;" : "");
@@ -616,7 +625,7 @@ REGISTER_CALCULATOR(TfLiteConverterCalculator);
   RET_CHECK(gpu_data_out_->pipeline_state != nil)
       << "Couldn't create pipeline state "
       << [[error localizedDescription] UTF8String];
-#endif
+#endif  // MEDIAPIPE_TFLITE_GL_INFERENCE
 
   return ::mediapipe::OkStatus();
 }
@@ -627,13 +636,27 @@ REGISTER_CALCULATOR(TfLiteConverterCalculator);
   const auto& options =
       cc->Options<::mediapipe::TfLiteConverterCalculatorOptions>();
 
-  // Get data normalization mode.
-  zero_center_ = options.zero_center();
+  // if zero_center, set output float range to match [-1, 1] as specified in
+  // calculator proto.
+  if (options.zero_center()) {
+    output_range_.emplace(std::pair<float, float>(-1.0, 1.0));
+  }
+
+  // Custom output_tensor_float_range values.
+  // If the float range is specified in pb text, use the specified values
+  // instead.
+  if (options.has_output_tensor_float_range()) {
+    output_range_.emplace(options.output_tensor_float_range().min(),
+                          options.output_tensor_float_range().max());
+    CHECK_GT(output_range_->second, output_range_->first);
+  }
 
   // Custom div and sub values.
-  use_custom_normalization_ = options.use_custom_normalization();
-  custom_div_ = options.custom_div();
-  custom_sub_ = options.custom_sub();
+  if (options.use_custom_normalization()) {
+    output_range_.emplace(std::pair<float, float>(
+        -options.custom_sub(),
+        -options.custom_sub() + 255.0 / options.custom_div()));
+  }
 
   // Get y-flip mode.
   flip_vertically_ = options.flip_vertically();
@@ -661,40 +684,46 @@ REGISTER_CALCULATOR(TfLiteConverterCalculator);
 
 template <class T>
 ::mediapipe::Status TfLiteConverterCalculator::NormalizeImage(
-    const ImageFrame& image_frame, bool zero_center, bool flip_vertically,
-    float* tensor_ptr) {
+    const ImageFrame& image_frame, bool flip_vertically, float* tensor_ptr) {
   const int height = image_frame.Height();
   const int width = image_frame.Width();
   const int channels = image_frame.NumberOfChannels();
   const int channels_preserved = std::min(channels, max_num_channels_);
   const int channels_ignored = channels - channels_preserved;
 
-  float div, sub;
+  if (output_range_.has_value()) {
+    // If the output float range is set and we are not using custom
+    // normalization, normalize the pixel values from [0, 255] to the specified
+    // output range.
+    RET_CHECK_NE(output_range_->first, output_range_->second);
+    const float scale = (output_range_->second - output_range_->first) / 255.0f;
+    const float bias = output_range_->first;
 
-  if (use_custom_normalization_) {
-    RET_CHECK_GT(custom_div_, 0.0f);
-    RET_CHECK_GE(custom_sub_, 0.0f);
-    div = custom_div_;
-    sub = custom_sub_;
-  } else if (zero_center) {
-    // [-1,1]
-    div = 127.5f;
-    sub = 1.0f;
-  } else {
-    // [0,1]
-    div = 255.0f;
-    sub = 0.0f;
-  }
-
-  for (int i = 0; i < height; ++i) {
-    const T* image_ptr = reinterpret_cast<const T*>(
-        image_frame.PixelData() +
-        (flip_vertically ? height - 1 - i : i) * image_frame.WidthStep());
-    for (int j = 0; j < width; ++j) {
-      for (int c = 0; c < channels_preserved; ++c) {
-        *tensor_ptr++ = *image_ptr++ / div - sub;
+    for (int i = 0; i < height; ++i) {
+      const T* image_ptr = reinterpret_cast<const T*>(
+          image_frame.PixelData() +
+          (flip_vertically ? height - 1 - i : i) * image_frame.WidthStep());
+      for (int j = 0; j < width; ++j) {
+        for (int c = 0; c < channels_preserved; ++c) {
+          *tensor_ptr++ = *image_ptr++ * scale + bias;
+        }
+        image_ptr += channels_ignored;
       }
-      image_ptr += channels_ignored;
+    }
+  } else {
+    // [0,1], scale only (bias == 0)
+    // Verified that there are no precision issues with 1.0f / 255.0f expression
+    const float scale = 1.0f / 255.0f;
+    for (int i = 0; i < height; ++i) {
+      const T* image_ptr = reinterpret_cast<const T*>(
+          image_frame.PixelData() +
+          (flip_vertically ? height - 1 - i : i) * image_frame.WidthStep());
+      for (int j = 0; j < width; ++j) {
+        for (int c = 0; c < channels_preserved; ++c) {
+          *tensor_ptr++ = *image_ptr++ * scale;
+        }
+        image_ptr += channels_ignored;
+      }
     }
   }
 

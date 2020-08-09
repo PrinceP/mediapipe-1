@@ -14,6 +14,7 @@
 
 #include <memory>
 
+#include "absl/strings/str_cat.h"
 #include "mediapipe/calculators/util/annotation_overlay_calculator.pb.h"
 #include "mediapipe/framework/calculator_framework.h"
 #include "mediapipe/framework/calculator_options.pb.h"
@@ -159,6 +160,8 @@ class AnnotationOverlayCalculator : public CalculatorBase {
   GLuint image_mat_tex_ = 0;  // Overlay drawing image for GPU.
   int width_ = 0;
   int height_ = 0;
+  int width_canvas_ = 0;  // Size of overlay drawing texture canvas.
+  int height_canvas_ = 0;
 #endif  //  MEDIAPIPE_DISABLE_GPU
 };
 REGISTER_CALCULATOR(AnnotationOverlayCalculator);
@@ -247,6 +250,7 @@ REGISTER_CALCULATOR(AnnotationOverlayCalculator);
   // Initialize the helper renderer library.
   renderer_ = absl::make_unique<AnnotationRenderer>();
   renderer_->SetFlipTextVertically(options_.flip_text_vertically());
+  if (use_gpu_) renderer_->SetScaleFactor(options_.gpu_scale_factor());
 
   // Set the output header based on the input header (if present).
   const char* input_tag = use_gpu_ ? kInputFrameTagGpu : kInputFrameTag;
@@ -388,8 +392,8 @@ REGISTER_CALCULATOR(AnnotationOverlayCalculator);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glBindTexture(GL_TEXTURE_2D, image_mat_tex_);
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width_, height_, GL_RGB,
-                    GL_UNSIGNED_BYTE, overlay_image);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width_canvas_, height_canvas_,
+                    GL_RGB, GL_UNSIGNED_BYTE, overlay_image);
     glBindTexture(GL_TEXTURE_2D, 0);
   }
 
@@ -491,12 +495,13 @@ REGISTER_CALCULATOR(AnnotationOverlayCalculator);
     if (format != mediapipe::ImageFormat::SRGBA &&
         format != mediapipe::ImageFormat::SRGB)
       RET_CHECK_FAIL() << "Unsupported GPU input format: " << format;
-    image_mat = absl::make_unique<cv::Mat>(height_, width_, CV_8UC3);
+    image_mat =
+        absl::make_unique<cv::Mat>(height_canvas_, width_canvas_, CV_8UC3);
     memset(image_mat->data, kAnnotationBackgroundColor,
-           height_ * width_ * image_mat->elemSize());
+           height_canvas_ * width_canvas_ * image_mat->elemSize());
   } else {
     image_mat = absl::make_unique<cv::Mat>(
-        options_.canvas_height_px(), options_.canvas_width_px(), CV_8UC3,
+        height_canvas_, width_canvas_, CV_8UC3,
         cv::Scalar(options_.canvas_color().r(), options_.canvas_color().g(),
                    options_.canvas_color().b()));
   }
@@ -573,31 +578,33 @@ REGISTER_CALCULATOR(AnnotationOverlayCalculator);
   };
 
   // Shader to overlay a texture onto another when overlay is non-zero.
-  const GLchar* frag_src = GLES_VERSION_COMPAT
-      R"(
-  #if __VERSION__ < 130
-    #define in varying
-  #endif  // __VERSION__ < 130
-
+  constexpr char kFragSrcBody[] = R"(
+  DEFAULT_PRECISION(mediump, float)
   #ifdef GL_ES
     #define fragColor gl_FragColor
-    precision highp float;
   #else
-    #define lowp
-    #define mediump
-    #define highp
-    #define texture2D texture
     out vec4 fragColor;
-  #endif  // defined(GL_ES)
+  #endif  // GL_ES
 
     in vec2 sample_coordinate;
     uniform sampler2D input_frame;
+    // "overlay" texture has top-left origin (OpenCV mat with annotations has
+    // been uploaded to GPU without vertical flip)
     uniform sampler2D overlay;
     uniform vec3 transparent_color;
 
     void main() {
       vec3 image_pix = texture2D(input_frame, sample_coordinate).rgb;
+  #ifdef INPUT_FRAME_HAS_TOP_LEFT_ORIGIN
+      // "input_frame" has top-left origin same as "overlay", hence overlaying
+      // as is.
       vec3 overlay_pix = texture2D(overlay, sample_coordinate).rgb;
+  #else
+      // "input_frame" has bottom-left origin, hence flipping "overlay" texture
+      // coordinates.
+      vec3 overlay_pix = texture2D(overlay, vec2(sample_coordinate.x, 1.0 - sample_coordinate.y)).rgb;
+  #endif  // INPUT_FRAME_HAS_TOP_LEFT_ORIGIN
+
       vec3 out_pix = image_pix;
       float dist = distance(overlay_pix.rgb, transparent_color);
       if (dist > 0.001) out_pix = overlay_pix;
@@ -606,8 +613,18 @@ REGISTER_CALCULATOR(AnnotationOverlayCalculator);
     }
   )";
 
+  std::string defines;
+  if (options_.gpu_uses_top_left_origin()) {
+    defines = R"(
+      #define INPUT_FRAME_HAS_TOP_LEFT_ORIGIN;
+    )";
+  }
+
+  const std::string frag_src = absl::StrCat(
+      mediapipe::kMediaPipeFragmentShaderPreamble, defines, kFragSrcBody);
+
   // Create shader program and set parameters
-  mediapipe::GlhCreateProgram(mediapipe::kBasicVertexShader, frag_src,
+  mediapipe::GlhCreateProgram(mediapipe::kBasicVertexShader, frag_src.c_str(),
                               NUM_ATTRIBUTES, (const GLchar**)&attr_name[0],
                               attr_location, &program_);
   RET_CHECK(program_) << "Problem initializing the program.";
@@ -619,19 +636,29 @@ REGISTER_CALCULATOR(AnnotationOverlayCalculator);
               kAnnotationBackgroundColor / 255.0,
               kAnnotationBackgroundColor / 255.0);
 
-  // Init texture for opencv rendered frame.
-  const auto& input_frame =
-      cc->Inputs().Tag(kInputFrameTagGpu).Get<mediapipe::GpuBuffer>();
   // Ensure GPU texture is divisible by 4. See b/138751944 for more info.
-  width_ =
-      RoundUp(input_frame.width(), ImageFrame::kGlDefaultAlignmentBoundary);
-  height_ =
-      RoundUp(input_frame.height(), ImageFrame::kGlDefaultAlignmentBoundary);
+  const float alignment = ImageFrame::kGlDefaultAlignmentBoundary;
+  const float scale_factor = options_.gpu_scale_factor();
+  if (image_frame_available_) {
+    const auto& input_frame =
+        cc->Inputs().Tag(kInputFrameTagGpu).Get<mediapipe::GpuBuffer>();
+    width_ = RoundUp(input_frame.width(), alignment);
+    height_ = RoundUp(input_frame.height(), alignment);
+  } else {
+    width_ = RoundUp(options_.canvas_width_px(), alignment);
+    height_ = RoundUp(options_.canvas_height_px(), alignment);
+  }
+  width_canvas_ = RoundUp(width_ * scale_factor, alignment);
+  height_canvas_ = RoundUp(height_ * scale_factor, alignment);
+
+  // Init texture for opencv rendered frame.
   {
     glGenTextures(1, &image_mat_tex_);
     glBindTexture(GL_TEXTURE_2D, image_mat_tex_);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, width_, height_, 0, GL_RGB,
-                 GL_UNSIGNED_BYTE, nullptr);
+    // TODO
+    // OpenCV only renders to RGB images, not RGBA. Ideally this should be RGBA.
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, width_canvas_, height_canvas_, 0,
+                 GL_RGB, GL_UNSIGNED_BYTE, nullptr);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);

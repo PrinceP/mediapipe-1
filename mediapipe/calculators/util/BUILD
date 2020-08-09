@@ -320,6 +320,7 @@ cc_library(
         "//mediapipe/framework:calculator_options_cc_proto",
         "//mediapipe/framework/formats:image_format_cc_proto",
         "//mediapipe/util:color_cc_proto",
+        "@com_google_absl//absl/strings",
         "//mediapipe/framework:calculator_framework",
         "//mediapipe/framework/formats:image_frame",
         "//mediapipe/framework/formats:video_stream_header",
@@ -375,6 +376,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":timed_box_list_id_to_label_calculator_cc_proto",
+        "@com_google_absl//absl/container:node_hash_map",
         "//mediapipe/framework/port:status",
         "//mediapipe/framework:calculator_framework",
         "//mediapipe/framework:packet",
@@ -541,6 +543,19 @@ cc_library(
     alwayslink = 1,
 )
 
+cc_library(
+    name = "rect_projection_calculator",
+    srcs = ["rect_projection_calculator.cc"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//mediapipe/framework:calculator_framework",
+        "//mediapipe/framework/formats:rect_cc_proto",
+        "//mediapipe/framework/port:ret_check",
+        "//mediapipe/framework/port:status",
+    ],
+    alwayslink = 1,
+)
+
 cc_test(
     name = "detections_to_rects_calculator_test",
     size = "small",
@@ -684,6 +699,8 @@ mediapipe_cc_proto_library(
     visibility = ["//visibility:public"],
     deps = [":rect_to_render_data_calculator_proto"],
 )
+
+# TODO: What is that one for?
 
 mediapipe_cc_proto_library(
     name = "detections_to_render_data_calculator_cc_proto",
@@ -951,6 +968,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":top_k_scores_calculator_cc_proto",
+        "@com_google_absl//absl/container:node_hash_map",
         "//mediapipe/framework/formats:classification_cc_proto",
         "//mediapipe/framework/port:ret_check",
         "//mediapipe/framework/port:status",

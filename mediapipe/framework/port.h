@@ -46,7 +46,7 @@
 // but may or may not still be able to run other OpenGL code.
 #if !defined(MEDIAPIPE_DISABLE_GL_COMPUTE) &&         \
     (defined(__APPLE__) || defined(__EMSCRIPTEN__) || \
-     defined(MEDIAPIPE_DISABLE_GPU))
+     defined(MEDIAPIPE_DISABLE_GPU) || MEDIAPIPE_USING_SWIFTSHADER)
 #define MEDIAPIPE_DISABLE_GL_COMPUTE
 #endif
 
@@ -79,5 +79,18 @@
 #define MEDIAPIPE_METAL_ENABLED 0
 #endif
 #endif
+
+#ifndef MEDIAPIPE_HAS_RTTI
+// Detect if RTTI is disabled in the compiler.
+#if defined(__clang__) && defined(__has_feature)
+#define MEDIAPIPE_HAS_RTTI __has_feature(cxx_rtti)
+#elif defined(__GNUC__) && !defined(__GXX_RTTI)
+#define MEDIAPIPE_HAS_RTTI 0
+#elif defined(_MSC_VER) && !defined(_CPPRTTI)
+#define MEDIAPIPE_HAS_RTTI 0
+#else
+#define MEDIAPIPE_HAS_RTTI 1
+#endif
+#endif  // MEDIAPIPE_HAS_RTTI
 
 #endif  // MEDIAPIPE_FRAMEWORK_PORT_H_

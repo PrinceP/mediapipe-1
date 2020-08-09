@@ -261,6 +261,7 @@ cc_test(
         "//mediapipe/framework/port:integral_types",
         "//mediapipe/framework/port:logging",
         "//mediapipe/framework/port:threadpool",
+        "@com_google_absl//absl/container:node_hash_map",
         "@com_google_absl//absl/synchronization",
         "@com_google_absl//absl/time",
     ],
@@ -297,4 +298,25 @@ cc_library(
         ],
         "//mediapipe:apple": [],
     }),
+)
+
+cc_test(
+    name = "reporter_test",
+    srcs = ["reporter_test.cc"],
+    data = [
+        "//mediapipe/framework/profiler/testdata:mediapipe_profile_graphs",
+    ],
+    visibility = ["//visibility:private"],
+    deps = [
+        "//mediapipe/framework:calculator_cc_proto",
+        "//mediapipe/framework:calculator_profile_cc_proto",
+        "//mediapipe/framework/deps:file_path",
+        "//mediapipe/framework/port:advanced_proto",
+        "//mediapipe/framework/port:gtest_main",
+        "//mediapipe/framework/port:parse_text_proto",
+        "//mediapipe/framework/profiler/reporter:reporter_lib",
+        "//mediapipe/framework/tool:test_util",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+    ],
 )
