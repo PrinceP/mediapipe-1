@@ -24,9 +24,9 @@
 #include "mediapipe/util/color.pb.h"
 #include "mediapipe/util/render_data.pb.h"
 
-#include "mediapipe/gpu/gl_calculator_helper.h"
-#include "mediapipe/gpu/gl_simple_shaders.h"
-#include "mediapipe/gpu/shader_util.h"
+//#include "mediapipe/gpu/gl_calculator_helper.h"
+//#include "mediapipe/gpu/gl_simple_shaders.h"
+//#include "mediapipe/gpu/shader_util.h"
 
 namespace mediapipe {
 
