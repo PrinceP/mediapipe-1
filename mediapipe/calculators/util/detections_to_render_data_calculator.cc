@@ -253,9 +253,9 @@ void DetectionsToRenderDataCalculator::AddLabels(
     const float rounded_score =
         std::round(detection.score(i) * kNumScoreDecimalDigitsMultipler) /
         kNumScoreDecimalDigitsMultipler;
-    std::string label_and_score =
-        absl::StrCat(label_str, options.text_delimiter(), rounded_score,
-                     options.text_delimiter());
+    std::string label_and_score = "";
+//        absl::StrCat(label_str, options.text_delimiter(), rounded_score,
+//                     options.text_delimiter());
     label_and_scores.push_back(label_and_score);
   }
   std::vector<std::string> labels;

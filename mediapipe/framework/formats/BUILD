@@ -32,12 +32,6 @@ mediapipe_proto_library(
 )
 
 mediapipe_proto_library(
-    name = "classification_proto",
-    srcs = ["classification.proto"],
-    visibility = ["//visibility:public"],
-)
-
-mediapipe_proto_library(
     name = "image_format_proto",
     srcs = ["image_format.proto"],
     visibility = ["//visibility:public"],
@@ -77,6 +71,12 @@ cc_library(
     deps = [
         "//mediapipe/framework/port:logging",
     ],
+)
+
+mediapipe_proto_library(
+    name = "classification_proto",
+    srcs = ["classification.proto"],
+    visibility = ["//visibility:public"],
 )
 
 cc_library(
@@ -220,6 +220,14 @@ mediapipe_proto_library(
         "//visibility:public",
     ],
 )
+#
+#mediapipe_proto_library(
+#    name = "classification_proto",
+#    srcs = ["classification.proto"],
+#    visibility = [
+#        "//visibility:public",
+#    ],
+#)
 
 # Expose the proto source files for building mediapipe AAR.
 filegroup(

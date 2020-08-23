@@ -41,6 +41,10 @@ android_binary(
         "//mediapipe/models:hand_landmark.tflite",
         "//mediapipe/models:palm_detection.tflite",
         "//mediapipe/models:palm_detection_labelmap.txt",
+        "//mediapipe/models:letters.tflite",
+        "//mediapipe/models:letters.txt",
+        "//mediapipe/models:face_detection_front.tflite",
+        "//mediapipe/models:face_detection_front_labelmap.txt",
     ],
     assets_dir = "",
     manifest = "//mediapipe/examples/android/src/java/com/google/mediapipe/apps/basic:AndroidManifest.xml",
@@ -58,7 +62,11 @@ android_binary(
     deps = [
         ":mediapipe_jni_lib",
         "//mediapipe/examples/android/src/java/com/google/mediapipe/apps/basic:basic_lib",
+        "//mediapipe/framework/formats:classification_java_proto_lite",
         "//mediapipe/framework/formats:landmark_java_proto_lite",
+        "//mediapipe/framework/formats:rect_java_proto_lite",
+        "//mediapipe/java/com/google/mediapipe/components:android_camerax_helper",
+        "//mediapipe/java/com/google/mediapipe/components:android_components",
         "//mediapipe/java/com/google/mediapipe/framework:android_framework",
     ],
 )

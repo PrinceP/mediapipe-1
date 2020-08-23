@@ -72,5 +72,7 @@ cc_library(
         "//mediapipe/gpu:gl_calculator_helper",
         "//mediapipe/gpu:gpu_buffer",
         "//mediapipe/gpu:gpu_shared_data_internal",
+        "//mediapipe/framework/formats:landmark_cc_proto",
+	"//mediapipe/framework/formats:detection_cc_proto",
     ],
 )

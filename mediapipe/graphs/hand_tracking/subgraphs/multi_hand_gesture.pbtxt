@@ -1,0 +1,61 @@
+# MediaPipe hand landmark localization subgraph.
+
+type: "MultiHandGestureSubgraph"
+
+input_stream: "IMAGE:input_video"
+# A vector of NormalizedRect, one per each hand detected.
+input_stream: "NORM_RECTS:multi_hand_rects"
+input_stream: "ITERABLE:multi_hand_presence"
+#output_stream: "ITERABLE:filtered_multi_hand_gesture"
+output_stream: "ITERABLE:multi_hand_gesture"
+
+
+# A vector of NormalizedLandmarks, one set per each hand.
+#output_stream: "LANDMARKS:filtered_multi_hand_landmarks"
+# A vector of NormalizedRect, one per each hand.
+#output_stream: "NORM_RECTS:filtered_multi_hand_rects_for_next_frame"
+
+
+
+# Outputs each element of multi_hand_rects at a fake timestamp for the rest
+# of the graph to process. Clones the input_video packet for each
+# single_hand_rect at the fake timestamp. At the end of the loop,
+# outputs the BATCH_END timestamp for downstream calculators to inform them
+# that all elements in the vector have been processed.
+node {
+  calculator: "BeginLoopNormalizedRectCalculator"
+  input_stream: "ITERABLE:multi_hand_rects"
+  input_stream: "CLONE:input_video"
+  output_stream: "ITEM:single_hand_rect"
+  output_stream: "CLONE:input_video_cloned"
+  output_stream: "BATCH_END:single_hand_rect_timestamp"
+}
+
+node {
+  calculator: "HandGestureSubgraph"
+  input_stream: "IMAGE:input_video_cloned"
+  input_stream: "NORM_RECT:single_hand_rect"
+  output_stream: "CLASSIFICATIONS:single_classifications"
+}
+
+
+# Collects the classifications for each single hand into a vector. Upon
+# receiving the BATCH_END timestamp, outputs a vector of boolean values at the
+# BATCH_END timestamp.
+node {
+  calculator: "EndLoopClassificationListCalculator"
+  input_stream: "ITEM:single_classifications"
+  input_stream: "BATCH_END:single_hand_rect_timestamp"
+  output_stream: "ITERABLE:multi_hand_gesture"
+}
+
+
+# Filters the input vector of Classifications based on hand presence value for
+# each hand. If the hand presence for hand #i is false, the Classifications
+# corresponding to that hand are dropped from the vector.
+#node {
+#  calculator: "FilterClassificationListCollectionCalculator"
+#  input_stream: "ITERABLE:multi_hand_gesture"
+#  input_stream: "CONDITION:multi_hand_presence"
+#  output_stream: "ITERABLE:filtered_multi_hand_gesture"
+#}
