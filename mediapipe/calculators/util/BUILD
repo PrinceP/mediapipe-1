@@ -127,7 +127,7 @@ mediapipe_proto_library(
     ],
 )
 
-mediapipe_cc_proto_library(
+mediapipe_proto_library(
     name = "annotation_overlay_calculator_cc_proto",
     srcs = ["annotation_overlay_calculator.proto"],
     cc_deps = [
@@ -138,7 +138,7 @@ mediapipe_cc_proto_library(
     deps = [":annotation_overlay_calculator_proto"],
 )
 
-#mediapipe_cc_proto_library(
+#mediapipe_proto_library(
 #    name = "annotation_overlay_disable_calculator_cc_proto",
 #    srcs = ["annotation_overlay_calculator.proto"],
 #    cc_deps = [
@@ -149,7 +149,7 @@ mediapipe_cc_proto_library(
 #    deps = [":annotation_overlay_calculator_proto"],
 #)
 
-mediapipe_cc_proto_library(
+mediapipe_proto_library(
     name = "detection_label_id_to_text_calculator_cc_proto",
     srcs = ["detection_label_id_to_text_calculator.proto"],
     cc_deps = [
@@ -161,7 +161,7 @@ mediapipe_cc_proto_library(
     ],
 )
 
-mediapipe_cc_proto_library(
+mediapipe_proto_library(
     name = "timed_box_list_id_to_label_calculator_cc_proto",
     srcs = ["timed_box_list_id_to_label_calculator.proto"],
     cc_deps = [
@@ -173,14 +173,14 @@ mediapipe_cc_proto_library(
     ],
 )
 
-mediapipe_cc_proto_library(
+mediapipe_proto_library(
     name = "latency_cc_proto",
     srcs = ["latency.proto"],
     visibility = ["//mediapipe:__subpackages__"],
     deps = [":latency_proto"],
 )
 
-mediapipe_cc_proto_library(
+mediapipe_proto_library(
     name = "non_max_suppression_calculator_cc_proto",
     srcs = ["non_max_suppression_calculator.proto"],
     cc_deps = ["//mediapipe/framework:calculator_cc_proto"],
@@ -188,14 +188,14 @@ mediapipe_cc_proto_library(
     deps = [":non_max_suppression_calculator_proto"],
 )
 
-mediapipe_cc_proto_library(
+mediapipe_proto_library(
     name = "packet_frequency_cc_proto",
     srcs = ["packet_frequency.proto"],
     visibility = ["//mediapipe:__subpackages__"],
     deps = [":packet_frequency_proto"],
 )
 
-mediapipe_cc_proto_library(
+mediapipe_proto_library(
     name = "packet_frequency_calculator_cc_proto",
     srcs = ["packet_frequency_calculator.proto"],
     cc_deps = [
@@ -207,7 +207,7 @@ mediapipe_cc_proto_library(
     ],
 )
 
-mediapipe_cc_proto_library(
+mediapipe_proto_library(
     name = "packet_latency_calculator_cc_proto",
     srcs = ["packet_latency_calculator.proto"],
     cc_deps = [
@@ -219,7 +219,7 @@ mediapipe_cc_proto_library(
     ],
 )
 
-mediapipe_cc_proto_library(
+mediapipe_proto_library(
     name = "collection_has_min_size_calculator_cc_proto",
     srcs = ["collection_has_min_size_calculator.proto"],
     cc_deps = [
@@ -229,7 +229,7 @@ mediapipe_cc_proto_library(
     deps = [":collection_has_min_size_calculator_proto"],
 )
 
-mediapipe_cc_proto_library(
+mediapipe_proto_library(
     name = "association_calculator_cc_proto",
     srcs = ["association_calculator.proto"],
     cc_deps = [
