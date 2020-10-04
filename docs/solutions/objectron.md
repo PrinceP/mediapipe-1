@@ -2,7 +2,7 @@
 layout: default
 title: Objectron (3D Object Detection)
 parent: Solutions
-nav_order: 9
+nav_order: 10
 ---
 
 # MediaPipe Objectron
@@ -161,7 +161,7 @@ to visualize its associated subgraphs, please see
 ### Objectron for Shoes
 
 *   Graph:
-    [`mediapipe/graphs/hair_segmentation/hair_segmentation_mobile_gpu.pbtxt`](https://github.com/google/mediapipe/tree/master/mediapipe/graphs/object_detection_3d/shoe_classic_occlusion_tracking.pbtxt)
+    [`mediapipe/graphs/object_detection_3d/shoe_classic_occlusion_tracking.pbtxt`](https://github.com/google/mediapipe/tree/master/mediapipe/graphs/object_detection_3d/shoe_classic_occlusion_tracking.pbtxt)
 *   Android target:
     [(or download prebuilt ARM64 APK)](https://drive.google.com/open?id=1S0K4hbWt3o31FfQ4QU3Rz7IHrvOUMx1d)
     [`mediapipe/examples/android/src/java/com/google/mediapipe/apps/objectdetection3d:objectdetection3d`](https://github.com/google/mediapipe/tree/master/mediapipe/examples/android/src/java/com/google/mediapipe/apps/objectdetection3d/BUILD)
@@ -191,5 +191,4 @@ to visualize its associated subgraphs, please see
 *   Paper:
     [Instant 3D Object Tracking with Applications in Augmented Reality](https://drive.google.com/open?id=1O_zHmlgXIzAdKljp20U_JUkEHOGG52R8)
     ([presentation](https://www.youtube.com/watch?v=9ndF1AIo7h0))
-*   [TFLite model for shoes](https://github.com/google/mediapipe/tree/master/mediapipe/models/object_detection_3d_sneakers.tflite)
-*   [TFLite model for chairs](https://github.com/google/mediapipe/tree/master/mediapipe/models/object_detection_3d_chair.tflite)
+*   [Models and model cards](./models.md#objectron)

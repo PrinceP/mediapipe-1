@@ -389,8 +389,6 @@ REGISTER_CALCULATOR(AnnotationOverlayCalculator);
 
   // Upload render target to GPU.
   {
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
     glBindTexture(GL_TEXTURE_2D, image_mat_tex_);
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width_canvas_, height_canvas_,
                     GL_RGB, GL_UNSIGNED_BYTE, overlay_image);
@@ -478,6 +476,7 @@ REGISTER_CALCULATOR(AnnotationOverlayCalculator);
         options_.canvas_height_px(), options_.canvas_width_px(), CV_8UC3,
         cv::Scalar(options_.canvas_color().r(), options_.canvas_color().g(),
                    options_.canvas_color().b()));
+    *target_format = ImageFormat::SRGB;
   }
 
   return ::mediapipe::OkStatus();

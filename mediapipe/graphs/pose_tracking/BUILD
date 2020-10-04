@@ -17,7 +17,7 @@ load(
     "mediapipe_binary_graph",
 )
 
-licenses(["notice"])  # Apache 2.0
+licenses(["notice"])
 
 package(default_visibility = ["//visibility:public"])
 
@@ -26,7 +26,7 @@ cc_library(
     deps = [
         "//mediapipe/calculators/core:flow_limiter_calculator",
         "//mediapipe/calculators/image:image_properties_calculator",
-        "//mediapipe/graphs/pose_tracking/calculators:landmarks_smoothing_calculator",
+        "//mediapipe/calculators/util:landmarks_smoothing_calculator",
         "//mediapipe/graphs/pose_tracking/subgraphs:upper_body_pose_renderer_gpu",
         "//mediapipe/modules/pose_landmark:pose_landmark_upper_body_gpu",
     ],
@@ -44,7 +44,7 @@ cc_library(
     deps = [
         "//mediapipe/calculators/core:flow_limiter_calculator",
         "//mediapipe/calculators/image:image_properties_calculator",
-        "//mediapipe/graphs/pose_tracking/calculators:landmarks_smoothing_calculator",
+        "//mediapipe/calculators/util:landmarks_smoothing_calculator",
         "//mediapipe/graphs/pose_tracking/subgraphs:upper_body_pose_renderer_cpu",
         "//mediapipe/modules/pose_landmark:pose_landmark_upper_body_cpu",
     ],

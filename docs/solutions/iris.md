@@ -55,7 +55,7 @@ that uses a
 from the
 [face landmark module](https://github.com/google/mediapipe/tree/master/mediapipe/modules/face_landmark),
 an
-[iris landmark subgraph](https://github.com/google/mediapipe/tree/master/mediapipe/modules/iris_tracking/iris_landmark_left_and_right_gpu.pbtxt)
+[iris landmark subgraph](https://github.com/google/mediapipe/tree/master/mediapipe/modules/iris_landmark/iris_landmark_left_and_right_gpu.pbtxt)
 from the
 [iris landmark module](https://github.com/google/mediapipe/tree/master/mediapipe/modules/iris_landmark),
 and renders using a dedicated
@@ -71,6 +71,11 @@ Note: To visualize a graph, copy the graph and paste it into
 [MediaPipe Visualizer](https://viz.mediapipe.dev/). For more information on how
 to visualize its associated subgraphs, please see
 [visualizer documentation](../tools/visualizer.md).
+
+The output of the pipeline is a set of 478 3D landmarks, including 468 face
+landmarks from [MediaPipe Face Mesh](./face_mesh.md), with those around the eyes
+further refined (see Fig 2), and 10 additional iris landmarks appended at the
+end (5 for each eye, and see Fig 2 also).
 
 ## Models
 
@@ -194,11 +199,4 @@ Please refer to [these instructions](../index.md#mediapipe-on-the-web).
 *   Paper:
     [Real-time Pupil Tracking from Monocular Video for Digital Puppetry](https://arxiv.org/abs/2006.11341)
     ([presentation](https://youtu.be/cIhXkiiapQI))
-*   Face detection model:
-    [TFLite model](https://github.com/google/mediapipe/tree/master/mediapipe/modules/face_detection/face_detection_front.tflite)
-*   Face landmark model:
-    [TFLite model](https://github.com/google/mediapipe/tree/master/mediapipe/modules/face_landmark/face_landmark.tflite),
-    [TF.js model](https://tfhub.dev/mediapipe/facemesh/1)
-*   Iris landmark model:
-    [TFLite model](https://github.com/google/mediapipe/tree/master/mediapipe/modules/iris_landmark/iris_landmark.tflite)
-*   [Model card](https://mediapipe.page.link/iris-mc)
+*   [Models and model cards](./models.md#iris)

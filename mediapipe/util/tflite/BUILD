@@ -13,7 +13,7 @@
 # limitations under the License.
 #
 
-licenses(["notice"])  # Apache 2.0
+licenses(["notice"])
 
 package(default_visibility = [
     "//mediapipe:__subpackages__",
@@ -49,41 +49,6 @@ cc_library(
         "@org_tensorflow//tensorflow/lite:builtin_op_data",
         "@org_tensorflow//tensorflow/lite/kernels:builtin_ops",
     ],
-)
-
-cc_library(
-    name = "tensor_buffer",
-    srcs = ["tensor_buffer.cc"],
-    hdrs = ["tensor_buffer.h"],
-    deps = [
-        "@org_tensorflow//tensorflow/lite:framework",
-        "@com_google_absl//absl/memory",
-        "//mediapipe/framework:port",
-    ] + select({
-        "//mediapipe/gpu:disable_gpu": [],
-        "//mediapipe:ios": [
-            "//mediapipe/gpu:MPPMetalUtil",
-            "//mediapipe/gpu:gl_base",
-        ],
-        "//conditions:default": [
-            "@org_tensorflow//tensorflow/lite/delegates/gpu/gl:gl_buffer",
-            "//mediapipe/gpu:gl_base",
-            "//mediapipe/gpu:gl_context",
-        ],
-    }),
-)
-
-cc_test(
-    name = "tensor_buffer_test",
-    srcs = ["tensor_buffer_test.cc"],
-    deps = [
-        ":tensor_buffer",
-        ":config",
-        "//mediapipe/framework/port:gtest_main",
-    ] + select({
-        "//mediapipe/gpu:disable_gpu": [],
-        "//conditions:default": [],
-    }),
 )
 
 cc_library(

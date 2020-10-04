@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("//mediapipe/framework/port:build_config.bzl", "mediapipe_cc_proto_library")
+load("//mediapipe/framework/port:build_config.bzl", "mediapipe_cc_proto_library", "mediapipe_proto_library")
 
-licenses(["notice"])  # Apache 2.0
+licenses(["notice"])
 
 package(default_visibility = ["//visibility:private"])
 
@@ -278,25 +278,15 @@ cc_library(
     alwayslink = 1,
 )
 
-proto_library(
+mediapipe_proto_library(
     name = "image_transformation_calculator_proto",
     srcs = ["image_transformation_calculator.proto"],
     visibility = ["//visibility:public"],
     deps = [
+        "//mediapipe/framework:calculator_options_proto",
         "//mediapipe/framework:calculator_proto",
         "//mediapipe/gpu:scale_mode_proto",
     ],
-)
-
-mediapipe_cc_proto_library(
-    name = "image_transformation_calculator_cc_proto",
-    srcs = ["image_transformation_calculator.proto"],
-    cc_deps = [
-        "//mediapipe/framework:calculator_cc_proto",
-        "//mediapipe/gpu:scale_mode_cc_proto",
-    ],
-    visibility = ["//visibility:public"],
-    deps = [":image_transformation_calculator_proto"],
 )
 
 cc_library(

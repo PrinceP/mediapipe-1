@@ -35,7 +35,7 @@ constexpr char kDetectedBorders[] = "BORDERS";
 constexpr char kCropRect[] = "CROP_RECT";
 // Field-of-view (degrees) of the camera's x-axis (width).
 // TODO: Parameterize FOV based on camera specs.
-constexpr float kWidthFieldOfView = 60;
+constexpr float kFieldOfView = 60;
 
 namespace mediapipe {
 namespace autoflip {
@@ -244,6 +244,9 @@ void MakeStaticFeatures(const int top_border, const int bottom_border,
     frame_width_ = cc->Inputs().Tag(kVideoFrame).Get<ImageFrame>().Width();
     frame_height_ = cc->Inputs().Tag(kVideoFrame).Get<ImageFrame>().Height();
   } else if (cc->Inputs().HasTag(kVideoSize)) {
+    if (cc->Inputs().Tag(kVideoSize).IsEmpty()) {
+      return ::mediapipe::OkStatus();
+    }
     frame_width_ =
         cc->Inputs().Tag(kVideoSize).Get<std::pair<int, int>>().first;
     frame_height_ =
@@ -256,13 +259,13 @@ void MakeStaticFeatures(const int top_border, const int bottom_border,
   if (!initialized_) {
     path_solver_height_ = std::make_unique<KinematicPathSolver>(
         options_.kinematic_options_zoom(), 0, frame_height_,
-        static_cast<float>(frame_width_) / kWidthFieldOfView);
+        static_cast<float>(frame_height_) / kFieldOfView);
     path_solver_width_ = std::make_unique<KinematicPathSolver>(
         options_.kinematic_options_pan(), 0, frame_width_,
-        static_cast<float>(frame_width_) / kWidthFieldOfView);
+        static_cast<float>(frame_width_) / kFieldOfView);
     path_solver_offset_ = std::make_unique<KinematicPathSolver>(
         options_.kinematic_options_tilt(), 0, frame_height_,
-        static_cast<float>(frame_width_) / kWidthFieldOfView);
+        static_cast<float>(frame_height_) / kFieldOfView);
     max_frame_value_ = 1.0;
     target_aspect_ = frame_width_ / static_cast<float>(frame_height_);
     // If target size is set and wider than input aspect, make sure to always
@@ -302,6 +305,14 @@ void MakeStaticFeatures(const int top_border, const int bottom_border,
   }
 
   if (cc->Inputs().HasTag(kDetections)) {
+    if (cc->Inputs().Tag(kDetections).IsEmpty()) {
+      auto default_rect = absl::make_unique<mediapipe::Rect>();
+      default_rect->set_width(frame_width_);
+      default_rect->set_height(frame_height_);
+      cc->Outputs().Tag(kCropRect).Add(default_rect.release(),
+                                       Timestamp(cc->InputTimestamp()));
+      return ::mediapipe::OkStatus();
+    }
     auto raw_detections =
         cc->Inputs().Tag(kDetections).Get<std::vector<mediapipe::Detection>>();
     for (const auto& detection : raw_detections) {
@@ -339,15 +350,24 @@ void MakeStaticFeatures(const int top_border, const int bottom_border,
     offset_y = last_measured_y_offset_;
   }
 
-  // Compute smoothed camera paths.
+  // Compute smoothed zoom camera path.
   MP_RETURN_IF_ERROR(path_solver_height_->AddObservation(
       height, cc->InputTimestamp().Microseconds()));
+  int path_height;
+  MP_RETURN_IF_ERROR(path_solver_height_->GetState(&path_height));
+  int path_width = path_height * target_aspect_;
+
+  // Update pixel-per-degree value for pan/tilt.
+  MP_RETURN_IF_ERROR(path_solver_width_->UpdatePixelsPerDegree(
+      static_cast<float>(path_width) / kFieldOfView));
+  MP_RETURN_IF_ERROR(path_solver_offset_->UpdatePixelsPerDegree(
+      static_cast<float>(path_height) / kFieldOfView));
+
+  // Compute smoothed pan/tilt paths.
   MP_RETURN_IF_ERROR(path_solver_width_->AddObservation(
       offset_x, cc->InputTimestamp().Microseconds()));
   MP_RETURN_IF_ERROR(path_solver_offset_->AddObservation(
       offset_y, cc->InputTimestamp().Microseconds()));
-  int path_height;
-  MP_RETURN_IF_ERROR(path_solver_height_->GetState(&path_height));
   int path_offset_x;
   MP_RETURN_IF_ERROR(path_solver_width_->GetState(&path_offset_x));
   int path_offset_y;
@@ -359,7 +379,7 @@ void MakeStaticFeatures(const int top_border, const int bottom_border,
   } else if (path_offset_y + ceil(path_height / 2.0) > frame_height_) {
     path_offset_y = frame_height_ - ceil(path_height / 2.0);
   }
-  int path_width = path_height * target_aspect_;
+
   if (path_offset_x - ceil(path_width / 2.0) < 0) {
     path_offset_x = ceil(path_width / 2.0);
   } else if (path_offset_x + ceil(path_width / 2.0) > frame_width_) {

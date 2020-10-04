@@ -14,7 +14,7 @@
 
 load("@pybind11_bazel//:build_defs.bzl", "pybind_library")
 
-licenses(["notice"])  # Apache 2.0
+licenses(["notice"])
 
 package(default_visibility = ["//mediapipe/python:__subpackages__"])
 
@@ -27,7 +27,6 @@ pybind_library(
         "//mediapipe/framework:calculator_cc_proto",
         "//mediapipe/framework:calculator_graph",
         "//mediapipe/framework:packet",
-        "//mediapipe/framework/port:file_helpers",
         "//mediapipe/framework/port:map_util",
         "//mediapipe/framework/port:parse_text_proto",
         "//mediapipe/framework/port:status",
@@ -135,7 +134,20 @@ pybind_library(
     name = "util",
     hdrs = ["util.h"],
     deps = [
+        "//mediapipe/framework:calculator_cc_proto",
         "//mediapipe/framework:timestamp",
+        "//mediapipe/framework/port:file_helpers",
         "//mediapipe/framework/port:status",
+    ],
+)
+
+pybind_library(
+    name = "validated_graph_config",
+    srcs = ["validated_graph_config.cc"],
+    hdrs = ["validated_graph_config.h"],
+    deps = [
+        ":util",
+        "//mediapipe/framework:validated_graph_config",
+        "//mediapipe/framework/port:parse_text_proto",
     ],
 )
