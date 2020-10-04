@@ -73,11 +73,14 @@ cc_library(
     ],
 )
 
-mediapipe_proto_library(
-    name = "classification_proto",
-    srcs = ["classification.proto"],
-    visibility = ["//visibility:public"],
-)
+#java_lite_proto_library(
+#    name = "classification_java_proto_lite",
+#    strict_deps = 0,
+#    visibility = [
+#        "//mediapipe:__subpackages__",
+#    ],
+#    deps = [":classification_proto"],
+#)
 
 cc_library(
     name = "matrix",
@@ -214,20 +217,18 @@ mediapipe_proto_library(
 )
 
 mediapipe_proto_library(
+    name = "classification_proto",
+    srcs = ["classification.proto"],
+    visibility = ["//visibility:public"],
+)
+
+mediapipe_proto_library(
     name = "landmark_proto",
     srcs = ["landmark.proto"],
     visibility = [
         "//visibility:public",
     ],
 )
-#
-#mediapipe_proto_library(
-#    name = "classification_proto",
-#    srcs = ["classification.proto"],
-#    visibility = [
-#        "//visibility:public",
-#    ],
-#)
 
 # Expose the proto source files for building mediapipe AAR.
 filegroup(

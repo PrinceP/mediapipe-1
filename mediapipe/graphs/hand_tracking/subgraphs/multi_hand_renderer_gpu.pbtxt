@@ -147,7 +147,7 @@ node {
 # Draws annotations and overlays them on top of the input images. Consumes
 # a vector of RenderData objects and draws each of them on the input frame.
 node {
-  calculator: "AnnotationOverlayDisableCalculator"
+  calculator: "AnnotationOverlayCalculator"
   input_stream: "IMAGE_GPU:input_image"
   input_stream: "face_detection_render_data"
 #  input_stream: "detection_render_data"

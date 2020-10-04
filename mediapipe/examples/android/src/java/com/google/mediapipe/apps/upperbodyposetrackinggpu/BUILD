@@ -46,7 +46,7 @@ android_binary(
         "applicationId": "com.google.mediapipe.apps.upperbodyposetrackinggpu",
         "appName": "Upper Body Pose Tracking",
         "mainActivity": ".MainActivity",
-        "cameraFacingFront": "False",
+        "cameraFacingFront": "True",
         "binaryGraphName": "upper_body_pose_tracking_gpu.binarypb",
         "inputVideoStreamName": "input_video",
         "outputVideoStreamName": "output_video",
